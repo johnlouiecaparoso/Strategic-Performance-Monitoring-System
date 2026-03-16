@@ -1,0 +1,289 @@
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { getOfficeCompliance } from '../../utils/analytics';
+import { Badge } from '../ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
+import { Progress } from '../ui/progress';
+import { CheckCircle, XCircle, Clock, Calendar } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useAppData } from '../../data/store';
+
+export function ComplianceDashboard() {
+  const { kpis, offices } = useAppData();
+  const submitted = kpis.filter(k => k.submissionStatus === 'submitted').length;
+  const notSubmitted = kpis.filter(k => k.submissionStatus === 'not_submitted').length;
+  const late = kpis.filter(k => k.submissionStatus === 'late').length;
+  const totalCompliance = kpis.length > 0 ? (submitted / kpis.length) * 100 : 0;
+
+  // Compliance by office
+  const officeComplianceData = offices.map(office => {
+    const compliance = getOfficeCompliance(office.id);
+    return {
+      office: office.name,
+      compliance: compliance.compliance,
+      submitted: compliance.submitted,
+      total: compliance.total
+    };
+  }).filter(o => o.total > 0);
+
+  // On-time vs late submissions
+  const onTime = kpis.filter(k => k.submissionStatus === 'submitted' && k.submissionDate);
+  const lateSubmissions = kpis.filter(k => k.submissionStatus === 'late');
+  const formatOfficeLabel = (label: string) =>
+    label.length > 18 ? `${label.slice(0, 18)}…` : label;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-xl sm:text-3xl font-semibold text-white">Submission Compliance Dashboard</h1>
+        <p className="text-white/80 mt-1 text-sm sm:text-base">Track submission status and compliance rates</p>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Overall Compliance</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-semibold">{totalCompliance.toFixed(1)}%</div>
+            <Progress value={totalCompliance} className="mt-2" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Submitted</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-semibold text-green-600">{submitted}</div>
+            <p className="text-xs text-gray-500 mt-1">On time and complete</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Late Submissions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-semibold text-orange-600">{late}</div>
+            <p className="text-xs text-gray-500 mt-1">Submitted after deadline</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Not Submitted</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-semibold text-red-600">{notSubmitted}</div>
+            <p className="text-xs text-gray-500 mt-1">Pending submission</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Office Compliance Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Compliance by Office</CardTitle>
+          <CardDescription>Submission compliance rate per office</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={350}>
+            <BarChart data={officeComplianceData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                dataKey="office"
+                angle={-45}
+                textAnchor="end"
+                height={120}
+                fontSize={12}
+                tickFormatter={formatOfficeLabel}
+              />
+              <YAxis domain={[0, 100]} />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="compliance" fill="#3b82f6" name="Compliance %" />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Not Submitted Alert */}
+      {notSubmitted > 0 && (
+        <Card className="border-red-200 bg-red-50">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <XCircle className="size-5 text-red-600" />
+              <CardTitle className="text-red-900">Missing Submissions</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="max-h-[26rem] overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>KPI Code</TableHead>
+                  <TableHead>KPI Name</TableHead>
+                  <TableHead>Office</TableHead>
+                  <TableHead>Focal Person</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {kpis.filter(k => k.submissionStatus === 'not_submitted').map(kpi => {
+                  const office = offices.find(o => o.id === kpi.officeId);
+                  return (
+                    <TableRow key={kpi.id}>
+                      <TableCell className="font-medium">{kpi.code}</TableCell>
+                      <TableCell>{kpi.name}</TableCell>
+                      <TableCell>{office?.name}</TableCell>
+                      <TableCell>{kpi.focalPerson}</TableCell>
+                      <TableCell>
+                        <Badge variant="destructive">Not Submitted</Badge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Late Submissions */}
+      {late > 0 && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Clock className="size-5 text-orange-600" />
+              <CardTitle className="text-orange-900">Late Submissions</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="max-h-[26rem] overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>KPI Code</TableHead>
+                  <TableHead>KPI Name</TableHead>
+                  <TableHead>Office</TableHead>
+                  <TableHead>Focal Person</TableHead>
+                  <TableHead>Submission Date</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {kpis.filter(k => k.submissionStatus === 'late').map(kpi => {
+                  const office = offices.find(o => o.id === kpi.officeId);
+                  return (
+                    <TableRow key={kpi.id}>
+                      <TableCell className="font-medium">{kpi.code}</TableCell>
+                      <TableCell>{kpi.name}</TableCell>
+                      <TableCell>{office?.name}</TableCell>
+                      <TableCell>{kpi.focalPerson}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="size-4 text-orange-600" />
+                          {kpi.submissionDate ? new Date(kpi.submissionDate).toLocaleDateString() : 'N/A'}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* All Submissions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>All Submission Records</CardTitle>
+          <CardDescription>Complete submission tracking</CardDescription>
+        </CardHeader>
+        <CardContent className="max-h-[30rem] overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>KPI Code</TableHead>
+                <TableHead>KPI Name</TableHead>
+                <TableHead>Office</TableHead>
+                <TableHead>Focal Person</TableHead>
+                <TableHead>Submission Date</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {kpis.map(kpi => {
+                const office = offices.find(o => o.id === kpi.officeId);
+                return (
+                  <TableRow key={kpi.id}>
+                    <TableCell className="font-medium">{kpi.code}</TableCell>
+                    <TableCell>
+                      <div className="max-w-xs">
+                        <div className="font-medium text-sm">{kpi.name}</div>
+                        <div className="text-xs text-gray-500 truncate">{kpi.description}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{office?.name}</TableCell>
+                    <TableCell>{kpi.focalPerson}</TableCell>
+                    <TableCell>
+                      {kpi.submissionDate ? (
+                        <div className="flex items-center gap-2">
+                          <Calendar className="size-4 text-gray-400" />
+                          <span className="text-sm">{new Date(kpi.submissionDate).toLocaleDateString()}</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">Not submitted</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={
+                        kpi.submissionStatus === 'submitted' ? 'default' :
+                        kpi.submissionStatus === 'late' ? 'secondary' :
+                        'destructive'
+                      }>
+                        {kpi.submissionStatus === 'submitted' && <CheckCircle className="size-3 mr-1" />}
+                        {kpi.submissionStatus === 'late' && <Clock className="size-3 mr-1" />}
+                        {kpi.submissionStatus === 'not_submitted' && <XCircle className="size-3 mr-1" />}
+                        {kpi.submissionStatus.replace('_', ' ')}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Office Compliance Details */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Office Compliance Details</CardTitle>
+          <CardDescription>Detailed compliance metrics by office</CardDescription>
+        </CardHeader>
+        <CardContent className="max-h-[18rem] overflow-auto">
+          <div className="space-y-4 pr-1">
+            {officeComplianceData
+              .sort((a, b) => b.compliance - a.compliance)
+              .map((data, idx) => (
+                <div key={idx} className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium text-sm">{data.office}</span>
+                      <span className="text-sm text-gray-600">
+                        {data.submitted} / {data.total} submitted
+                      </span>
+                    </div>
+                    <Progress value={data.compliance} />
+                  </div>
+                  <div className="font-semibold text-lg w-16 text-right">
+                    {data.compliance.toFixed(0)}%
+                  </div>
+                </div>
+              ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
