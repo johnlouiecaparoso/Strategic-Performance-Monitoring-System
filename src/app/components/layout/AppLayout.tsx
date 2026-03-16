@@ -58,12 +58,12 @@ export function AppLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       {/* Mobile sidebar */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="fixed inset-0 bg-gray-900/80" onClick={() => setSidebarOpen(false)} />
-          <div className="fixed left-0 top-16 bottom-0 w-72 bg-[#25671E] text-white">
+          <div className="fixed left-0 top-16 bottom-0 w-[85vw] max-w-72 bg-[#25671E] text-white">
             <nav className="flex h-full flex-col gap-1 p-4 overflow-y-auto">
               {navigation.map((item) => {
                 const isActive = location.pathname === item.href;
@@ -156,7 +156,7 @@ export function AppLayout() {
       <header className="fixed top-0 left-0 right-0 z-40 flex h-16 items-center gap-4 border-b border-white/20 bg-[#25671E] text-white px-4 sm:px-6">
         <button
           type="button"
-          className="flex items-center gap-3 text-left"
+          className="flex min-w-0 items-center gap-3 text-left"
           onClick={handleLogoToggle}
           aria-label="Toggle sidebar"
         >
@@ -168,7 +168,7 @@ export function AppLayout() {
               (e.currentTarget as HTMLImageElement).style.display = 'none';
             }}
           />
-          <span className="hidden sm:block text-sm font-semibold text-white">
+          <span className="hidden sm:block max-w-[34rem] truncate text-sm font-semibold text-white">
             Strategic Performance Monitoring System (SPMS)
           </span>
 
@@ -186,7 +186,7 @@ export function AppLayout() {
         )}
       </header>
 
-      <main className={`min-h-screen bg-[#519A66] px-4 pt-20 pb-4 sm:px-6 sm:pb-6 lg:px-8 lg:pb-8 ${desktopSidebarOpen ? 'lg:ml-72' : 'lg:ml-0'}`}>
+      <main className={`min-h-screen overflow-x-hidden bg-[#519A66] px-4 pt-20 pb-4 sm:px-6 sm:pb-6 lg:px-8 lg:pb-8 ${desktopSidebarOpen ? 'lg:ml-72' : 'lg:ml-0'}`}>
         <Outlet />
       </main>
     </div>
