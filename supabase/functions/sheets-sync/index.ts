@@ -46,6 +46,8 @@ const ALLOWED_TABLES = [
   'monthly_accomplishments',
   'issues',
   'movs',
+  'kpi_assignments',
+  'q1_matrix',
 ] as const;
 
 type AllowedTable = typeof ALLOWED_TABLES[number];
@@ -117,6 +119,42 @@ const COLUMN_MAP: Record<AllowedTable, Record<string, string>> = {
     validated: 'validated',
     validatornotes: 'validator_notes',
   },
+  kpi_assignments: {
+    id: 'id',
+    kpiid: 'kpi_id',
+    assignedofficeunit: 'assigned_office_unit',
+    assignmenttype: 'assignment_type',
+    pillar: 'pillar',
+    focalperson: 'focal_person',
+    sourcesheet: 'source_sheet',
+    sourcerow: 'source_row',
+  },
+  q1_matrix: {
+    assignedofficeunit: 'assigned_office_unit',
+    pillar: 'pillar',
+    assignmenttype: 'assignment_type',
+    goal: 'goal',
+    perspective: 'perspective',
+    strategicobjective: 'strategic_objective',
+    kpistrategicmeasure: 'kpi_strategic_measure',
+    target2026frombsc: 'target_2026_from_bsc',
+    q1target: 'q1_target',
+    january: 'january',
+    february: 'february',
+    march: 'march',
+    totalq1accomplishment: 'total_q1_accomplishment',
+    accomplishmentvsq1target: 'accomplishment_vs_q1_target',
+    keyactivitiesoutputs: 'key_activities_outputs',
+    meansofverificationmov: 'means_of_verification_mov',
+    status: 'status',
+    issueschallenges: 'issues_challenges',
+    assistanceneededrecommendations: 'assistance_needed_recommendations',
+    focalperson: 'focal_person',
+    submissiondate: 'submission_date',
+    bscremarks: 'bsc_remarks',
+    sourcesheet: 'source_sheet',
+    sourcerow: 'source_row',
+  },
 };
 
 // ── Upsert conflict targets ───────────────────────────────────────────────────
@@ -128,7 +166,232 @@ const CONFLICT_TARGETS: Record<AllowedTable, string> = {
   monthly_accomplishments: 'kpi_id,month',
   issues: 'id',
   movs: 'id',
+  kpi_assignments: 'kpi_id,assigned_office_unit,assignment_type',
+  q1_matrix: 'id',
 };
+
+function slug(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+}
+
+function parseNumeric(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+
+  const asString = String(value).trim();
+  if (!asString) return null;
+  const cleaned = asString.replace(/[%,$]/g, '');
+  const parsed = Number(cleaned);
+  if (Number.isFinite(parsed)) return parsed;
+
+  const firstNumber = cleaned.match(/-?\d+(\.\d+)?/);
+  if (!firstNumber) return null;
+  const fallback = Number(firstNumber[0]);
+  return Number.isFinite(fallback) ? fallback : null;
+}
+
+function parseDateISO(value: unknown): string | null {
+  if (!value) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
+}
+
+function parseGoal(goalText: string): { id: string; number: number; name: string; description: string } {
+  const text = goalText.trim();
+  const match = text.match(/goal\s*(\d+)\s*:\s*(.*)/i);
+  if (match) {
+    const parsedNumber = Number(match[1]);
+    const normalizedNumber = parsedNumber === 5 ? 6 : parsedNumber;
+    return {
+      id: `goal-${normalizedNumber}`,
+      number: normalizedNumber,
+      name: match[2].trim() || `Goal ${normalizedNumber}`,
+      description: text,
+    };
+  }
+
+  return {
+    id: `goal-${slug(text) || 'unknown'}`,
+    number: 0,
+    name: text || 'Unspecified Goal',
+    description: text,
+  };
+}
+
+function statusToKpiStatus(status: unknown): string {
+  const normalized = String(status ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_');
+
+  if (normalized === 'completed') return 'completed';
+  if (normalized === 'ongoing') return 'ongoing';
+  if (normalized === 'delayed') return 'delayed';
+  if (normalized === 'for_validation') return 'for_validation';
+  return 'not_started';
+}
+
+function statusToSubmissionStatus(submissionDate: string | null): string {
+  return submissionDate ? 'submitted' : 'not_submitted';
+}
+
+function buildQ1MatrixPayload(rows: Record<string, unknown>[]) {
+  const goals = new Map<string, Record<string, unknown>>();
+  const offices = new Map<string, Record<string, unknown>>();
+  const kpis = new Map<string, Record<string, unknown>>();
+  const assignments = new Map<string, Record<string, unknown>>();
+  const monthly = new Map<string, Record<string, unknown>>();
+  const issues = new Map<string, Record<string, unknown>>();
+
+  const monthDefs = [
+    { key: 'january', label: 'January' },
+    { key: 'february', label: 'February' },
+    { key: 'march', label: 'March' },
+  ] as const;
+
+  rows.forEach((rawRow, idx) => {
+    const row = transformRow(rawRow, 'q1_matrix');
+    const assignedOfficeUnit = String(row.assigned_office_unit ?? '').trim();
+    const goalText = String(row.goal ?? '').trim();
+    const kpiMeasure = String(row.kpi_strategic_measure ?? '').trim();
+    if (!assignedOfficeUnit || !goalText || !kpiMeasure) return;
+
+    const goal = parseGoal(goalText);
+    goals.set(goal.id, {
+      id: goal.id,
+      number: goal.number,
+      name: goal.name,
+      description: goal.description,
+    });
+
+    const officeId = `office-${slug(assignedOfficeUnit) || 'unknown'}`;
+    offices.set(officeId, {
+      id: officeId,
+      name: assignedOfficeUnit,
+      code: officeId.toUpperCase().replace(/-/g, '_'),
+      focal_person: String(row.focal_person ?? '').trim() || 'Unassigned',
+    });
+
+    const sourceSheet = String(row.source_sheet ?? 'Q1 Accomplishment Matrix').trim();
+    const sourceRow = Number.parseInt(String(row.source_row ?? ''), 10) || idx + 2;
+    const assignmentType = String(row.assignment_type ?? '').trim() || 'Unspecified';
+    const kpiId = `kpi-${slug(sourceSheet)}-${sourceRow}-${slug(assignedOfficeUnit)}-${slug(assignmentType)}`;
+
+    const targetRaw = row.target_2026_from_bsc;
+    const q1Target = parseNumeric(row.q1_target);
+    const targetNumeric = parseNumeric(targetRaw);
+    const submissionDate = parseDateISO(row.submission_date);
+    const kpiStatus = statusToKpiStatus(row.status);
+
+    kpis.set(kpiId, {
+      id: kpiId,
+      code: kpiId.toUpperCase().replace(/-/g, '_'),
+      name: kpiMeasure,
+      description: String(row.strategic_objective ?? '').trim() || null,
+      goal_id: goal.id,
+      office_id: officeId,
+      target: targetNumeric ?? 0,
+      unit: 'count',
+      status: kpiStatus,
+      submission_status: statusToSubmissionStatus(submissionDate),
+      submission_date: submissionDate,
+      focal_person: String(row.focal_person ?? '').trim() || 'Unassigned',
+      pillar: String(row.pillar ?? '').trim() || null,
+      assignment_type: assignmentType,
+      perspective: String(row.perspective ?? '').trim() || null,
+      strategic_objective: String(row.strategic_objective ?? '').trim() || null,
+      q1_target: q1Target,
+      target_text: targetRaw ? String(targetRaw).trim() : null,
+      key_activities_outputs: String(row.key_activities_outputs ?? '').trim() || null,
+      mov_text: String(row.means_of_verification_mov ?? '').trim() || null,
+      bsc_remarks: String(row.bsc_remarks ?? '').trim() || null,
+      source_sheet: sourceSheet,
+      source_row: sourceRow,
+      updated_at: new Date().toISOString(),
+    });
+
+    const assignmentId = `${kpiId}-${slug(assignedOfficeUnit)}-${slug(assignmentType)}`;
+    assignments.set(assignmentId, {
+      id: assignmentId,
+      kpi_id: kpiId,
+      assigned_office_unit: assignedOfficeUnit,
+      assignment_type: assignmentType,
+      pillar: String(row.pillar ?? '').trim() || null,
+      focal_person: String(row.focal_person ?? '').trim() || null,
+      source_sheet: sourceSheet,
+      source_row: sourceRow,
+    });
+
+    monthDefs.forEach((monthDef) => {
+      const value = parseNumeric(row[monthDef.key]);
+      if (value === null) return;
+      const percentage = q1Target && q1Target > 0 ? (value / q1Target) * 100 : 0;
+      monthly.set(`${kpiId}-${monthDef.label}`, {
+        id: `${kpiId}-${monthDef.label.toLowerCase()}`,
+        kpi_id: kpiId,
+        month: monthDef.label,
+        accomplishment: value,
+        percentage,
+        remarks: String(row.bsc_remarks ?? '').trim() || null,
+      });
+    });
+
+    const hasQ1MonthlyData = monthDefs.some((monthDef) => {
+      const value = parseNumeric(row[monthDef.key]);
+      return value !== null && value > 0;
+    });
+
+    if (!hasQ1MonthlyData) {
+      const totalQ1Value = parseNumeric(row.total_q1_accomplishment);
+      if (totalQ1Value !== null && totalQ1Value > 0) {
+        const percentage = q1Target && q1Target > 0 ? (totalQ1Value / q1Target) * 100 : 0;
+        monthly.set(`${kpiId}-March`, {
+          id: `${kpiId}-march`,
+          kpi_id: kpiId,
+          month: 'March',
+          accomplishment: totalQ1Value,
+          percentage,
+          remarks: 'Derived from Total Q1 Accomplishment',
+        });
+      }
+    }
+
+    const issueText = String(row.issues_challenges ?? '').trim();
+    const assistanceText = String(row.assistance_needed_recommendations ?? '').trim();
+    if (issueText || assistanceText) {
+      issues.set(`issue-${kpiId}`, {
+        id: `issue-${kpiId}`,
+        kpi_id: kpiId,
+        office_id: officeId,
+        category: 'General',
+        description: issueText || 'Assistance requested',
+        severity: (kpiStatus === 'delayed' ? 'high' : 'medium'),
+        status: 'open',
+        assistance_needed: assistanceText || null,
+        date_reported: submissionDate || new Date().toISOString().slice(0, 10),
+      });
+    }
+  });
+
+  return {
+    goals: [...goals.values()],
+    offices: [...offices.values()],
+    kpis: [...kpis.values()],
+    assignments: [...assignments.values()],
+    monthly: [...monthly.values()],
+    issues: [...issues.values()],
+  };
+}
 
 // ── Row transformation ────────────────────────────────────────────────────────
 
@@ -149,8 +412,10 @@ function transformRow(
       const str = String(value).trim().toLowerCase();
       transformed[mappedKey] = str === 'true' || str === 'yes' || str === '1';
     } else if (['target', 'accomplishment', 'percentage', 'number'].includes(mappedKey)) {
-      const num = Number(value);
-      transformed[mappedKey] = Number.isFinite(num) ? num : 0;
+      const num = parseNumeric(value);
+      transformed[mappedKey] = num ?? 0;
+    } else if (mappedKey === 'source_row') {
+      transformed[mappedKey] = Number.parseInt(String(value), 10) || null;
     } else {
       transformed[mappedKey] = value;
     }
@@ -229,6 +494,91 @@ Deno.serve(async (req: Request) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   const client = createClient(supabaseUrl, serviceKey);
+
+  if (allowedTable === 'q1_matrix') {
+    const payload = buildQ1MatrixPayload(rows);
+
+    const { error: goalsError } = await client.from('goals').upsert(payload.goals, {
+      onConflict: 'id',
+      count: 'exact',
+    });
+    if (goalsError) {
+      return new Response(JSON.stringify({ error: goalsError.message }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { error: officesError } = await client.from('offices').upsert(payload.offices, {
+      onConflict: 'id',
+      count: 'exact',
+    });
+    if (officesError) {
+      return new Response(JSON.stringify({ error: officesError.message }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { error: kpisError } = await client.from('kpis').upsert(payload.kpis, {
+      onConflict: 'id',
+      count: 'exact',
+    });
+    if (kpisError) {
+      return new Response(JSON.stringify({ error: kpisError.message }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { error: assignmentError } = await client
+      .from('kpi_assignments')
+      .upsert(payload.assignments, { onConflict: 'kpi_id,assigned_office_unit,assignment_type', count: 'exact' });
+    if (assignmentError) {
+      return new Response(JSON.stringify({ error: assignmentError.message }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { error: monthlyError } = await client
+      .from('monthly_accomplishments')
+      .upsert(payload.monthly, { onConflict: 'kpi_id,month', count: 'exact' });
+    if (monthlyError) {
+      return new Response(JSON.stringify({ error: monthlyError.message }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (payload.issues.length > 0) {
+      const { error: issuesError } = await client
+        .from('issues')
+        .upsert(payload.issues, { onConflict: 'id', count: 'exact' });
+      if (issuesError) {
+        return new Response(JSON.stringify({ error: issuesError.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        table: allowedTable,
+        upserted: {
+          goals: payload.goals.length,
+          offices: payload.offices.length,
+          kpis: payload.kpis.length,
+          assignments: payload.assignments.length,
+          monthly: payload.monthly.length,
+          issues: payload.issues.length,
+        },
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  }
 
   const { error, count } = await client
     .from(allowedTable)

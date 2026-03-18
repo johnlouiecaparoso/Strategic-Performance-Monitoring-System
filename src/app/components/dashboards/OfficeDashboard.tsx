@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { getOfficeCompliance } from '../../utils/analytics';
+import { getOfficeCompliance, getKPIQ1Progress } from '../../utils/analytics';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Badge } from '../ui/badge';
@@ -25,6 +25,7 @@ export function OfficeDashboard() {
   const completed = officeKPIs.filter(k => k.status === 'completed').length;
   const ongoing = officeKPIs.filter(k => k.status === 'ongoing').length;
   const delayed = officeKPIs.filter(k => k.status === 'delayed').length;
+  const forValidation = officeKPIs.filter(k => k.status === 'for_validation').length;
   
   return (
     <div className="space-y-6">
@@ -65,7 +66,7 @@ export function OfficeDashboard() {
       )}
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">Total KPIs</CardTitle>
@@ -101,6 +102,15 @@ export function OfficeDashboard() {
             <div className="text-2xl font-semibold text-red-600">{delayed}</div>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">For Validation</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-semibold text-indigo-600">{forValidation}</div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Compliance */}
@@ -132,8 +142,8 @@ export function OfficeDashboard() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Code</TableHead>
-                <TableHead>KPI Name</TableHead>
+                <TableHead className="w-[100px] min-w-[100px]">Code</TableHead>
+                <TableHead className="min-w-[320px]">KPI Name</TableHead>
                 <TableHead>Target</TableHead>
                 <TableHead>Accomplishment</TableHead>
                 <TableHead>Status</TableHead>
@@ -142,20 +152,20 @@ export function OfficeDashboard() {
             </TableHeader>
             <TableBody>
               {officeKPIs.map(kpi => {
-                const accs = monthlyAccomplishments.filter(a => a.kpiId === kpi.id);
-                const totalAcc = accs.reduce((s, a) => s + a.accomplishment, 0);
-                const percentage = kpi.target > 0 ? (totalAcc / kpi.target) * 100 : 0;
+                const progress = getKPIQ1Progress(kpi);
+                const totalAcc = progress.accomplishment;
+                const percentage = progress.percentage;
                 
                 return (
                   <TableRow key={kpi.id}>
-                    <TableCell className="font-medium">{kpi.code}</TableCell>
+                    <TableCell className="w-[100px] min-w-[100px] text-xs font-semibold text-gray-600 whitespace-nowrap">{kpi.code}</TableCell>
                     <TableCell>
-                      <div className="max-w-md">
-                        <div className="font-medium break-words">{kpi.name}</div>
+                      <div className="max-w-[340px] min-w-[280px]">
+                        <div className="font-semibold text-base leading-tight break-words">{kpi.name}</div>
                         <div className="text-xs text-gray-500 break-words">{kpi.description}</div>
                       </div>
                     </TableCell>
-                    <TableCell>{kpi.target} {kpi.unit}</TableCell>
+                    <TableCell>{progress.benchmarkTarget} {kpi.unit}</TableCell>
                     <TableCell>
                       <div>
                         <div className="font-medium">{totalAcc} {kpi.unit}</div>

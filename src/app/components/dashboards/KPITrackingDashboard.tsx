@@ -4,24 +4,43 @@ import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
 import { TrendingUp, TrendingDown, Minus, AlertCircle } from 'lucide-react';
 import { useAppData } from '../../data/store';
+import { getKPIQ1Progress } from '../../utils/analytics';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { useMemo, useState } from 'react';
 
 export function KPITrackingDashboard() {
   const { kpis, monthlyAccomplishments, goals, offices } = useAppData();
+  const [pillarFilter, setPillarFilter] = useState('all');
+  const [assignmentFilter, setAssignmentFilter] = useState('all');
+  const [perspectiveFilter, setPerspectiveFilter] = useState('all');
+
   const kpiData = kpis.map(kpi => {
     const accs = monthlyAccomplishments.filter(a => a.kpiId === kpi.id);
-    const totalAcc = accs.reduce((sum, accomplishment) => sum + accomplishment.accomplishment, 0);
-    const percentage = kpi.target > 0 ? (totalAcc / kpi.target) * 100 : 0;
-    const variance = totalAcc - kpi.target;
+    const progress = getKPIQ1Progress(kpi);
+    const totalAcc = progress.accomplishment;
+    const benchmarkTarget = progress.benchmarkTarget;
+    const percentage = progress.percentage;
+    const variance = totalAcc - benchmarkTarget;
     const goal = goals.find(g => g.id === kpi.goalId);
     const office = offices.find(o => o.id === kpi.officeId);
 
     return {
       ...kpi,
       totalAccomplishment: totalAcc,
+      benchmarkTarget,
       percentage: Math.round(percentage * 10) / 10,
       variance,
       goalName: goal?.name || '',
       officeName: office?.name || '',
+      q1Target: kpi.q1Target || benchmarkTarget,
+      perspective: kpi.perspective || '',
+      assignmentType: kpi.assignmentType || '',
+      pillar: kpi.pillar || '',
+      strategicObjective: kpi.strategicObjective || '',
+      keyActivitiesOutputs: kpi.keyActivitiesOutputs || '',
+      bscRemarks: kpi.bscRemarks || '',
+      sourceSheet: kpi.sourceSheet || '',
+      sourceRow: kpi.sourceRow,
       performance:
         percentage >= 100
           ? 'overachieved'
@@ -34,9 +53,31 @@ export function KPITrackingDashboard() {
     };
   });
 
-  const overachieved = kpiData.filter(k => k.performance === 'overachieved');
-  const underperforming = kpiData.filter(k => k.performance === 'underperforming');
-  const noUpdates = kpiData.filter(k => !k.hasUpdates);
+  const pillarOptions = useMemo(
+    () => ['all', ...Array.from(new Set(kpiData.map((kpi) => kpi.pillar).filter(Boolean))).sort()],
+    [kpiData],
+  );
+
+  const assignmentOptions = useMemo(
+    () => ['all', ...Array.from(new Set(kpiData.map((kpi) => kpi.assignmentType).filter(Boolean))).sort()],
+    [kpiData],
+  );
+
+  const perspectiveOptions = useMemo(
+    () => ['all', ...Array.from(new Set(kpiData.map((kpi) => kpi.perspective).filter(Boolean))).sort()],
+    [kpiData],
+  );
+
+  const filteredKpiData = kpiData.filter((kpi) => {
+    const passPillar = pillarFilter === 'all' || kpi.pillar === pillarFilter;
+    const passAssignment = assignmentFilter === 'all' || kpi.assignmentType === assignmentFilter;
+    const passPerspective = perspectiveFilter === 'all' || kpi.perspective === perspectiveFilter;
+    return passPillar && passAssignment && passPerspective;
+  });
+
+  const overachieved = filteredKpiData.filter(k => k.performance === 'overachieved');
+  const underperforming = filteredKpiData.filter(k => k.performance === 'underperforming');
+  const noUpdates = filteredKpiData.filter(k => !k.hasUpdates);
 
   return (
     <div className="space-y-6">
@@ -45,6 +86,64 @@ export function KPITrackingDashboard() {
         <p className="text-white/80 mt-1 text-sm sm:text-base">Target vs accomplishment analysis</p>
       </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Filter KPIs</CardTitle>
+          <CardDescription>Filter by matrix dimensions from your Google Sheet</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 md:grid-cols-3">
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Pillar</p>
+              <Select value={pillarFilter} onValueChange={setPillarFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All pillars" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pillarOptions.map((option) => (
+                    <SelectItem key={option || 'blank-pillar'} value={option || 'blank-pillar'}>
+                      {option === 'all' ? 'All pillars' : option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Assignment Type</p>
+              <Select value={assignmentFilter} onValueChange={setAssignmentFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All assignments" />
+                </SelectTrigger>
+                <SelectContent>
+                  {assignmentOptions.map((option) => (
+                    <SelectItem key={option || 'blank-assignment'} value={option || 'blank-assignment'}>
+                      {option === 'all' ? 'All assignment types' : option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Perspective</p>
+              <Select value={perspectiveFilter} onValueChange={setPerspectiveFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All perspectives" />
+                </SelectTrigger>
+                <SelectContent>
+                  {perspectiveOptions.map((option) => (
+                    <SelectItem key={option || 'blank-perspective'} value={option || 'blank-perspective'}>
+                      {option === 'all' ? 'All perspectives' : option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
@@ -52,6 +151,7 @@ export function KPITrackingDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-semibold">{kpis.length}</div>
+            <p className="text-xs text-gray-500 mt-1">{filteredKpiData.length} after filters</p>
           </CardContent>
         </Card>
 
@@ -142,35 +242,52 @@ export function KPITrackingDashboard() {
           <CardTitle>All KPIs Performance</CardTitle>
           <CardDescription>Complete target vs accomplishment breakdown</CardDescription>
         </CardHeader>
-        <CardContent className="max-h-[30rem] overflow-auto">
-          <div className="overflow-x-auto">
-            <Table>
+        <CardContent className="max-h-[30rem] overflow-auto pb-2 [scrollbar-gutter:stable]">
+            <Table className="table-fixed min-w-[2400px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Code</TableHead>
-                  <TableHead>KPI Name</TableHead>
-                  <TableHead>Goal</TableHead>
-                  <TableHead>Office</TableHead>
-                  <TableHead>Target</TableHead>
-                  <TableHead>Accomplishment</TableHead>
-                  <TableHead>Variance</TableHead>
-                  <TableHead>Progress</TableHead>
+                  <TableHead className="w-[220px] whitespace-nowrap">Code</TableHead>
+                  <TableHead className="w-[460px] whitespace-nowrap">KPI Name</TableHead>
+                  <TableHead className="w-[170px] whitespace-nowrap">Goal</TableHead>
+                  <TableHead className="w-[180px] whitespace-nowrap">Office</TableHead>
+                  <TableHead className="w-[150px] whitespace-nowrap">Assignment</TableHead>
+                  <TableHead className="w-[150px] whitespace-nowrap">Perspective</TableHead>
+                  <TableHead className="w-[140px] whitespace-nowrap">Pillar</TableHead>
+                  <TableHead className="w-[220px] whitespace-nowrap">Strategic Objective</TableHead>
+                  <TableHead className="w-[130px] whitespace-nowrap">Target</TableHead>
+                  <TableHead className="w-[130px] whitespace-nowrap">Q1 Target</TableHead>
+                  <TableHead className="w-[160px] whitespace-nowrap">Accomplishment</TableHead>
+                  <TableHead className="w-[130px] whitespace-nowrap">Variance</TableHead>
+                  <TableHead className="w-[220px] whitespace-nowrap">Progress</TableHead>
+                  <TableHead className="w-[220px] whitespace-nowrap">Key Activities/Outputs</TableHead>
+                  <TableHead className="w-[220px] whitespace-nowrap">BSC Remarks</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {kpiData.map(kpi => (
+                {filteredKpiData.map(kpi => (
                   <TableRow key={kpi.id}>
-                    <TableCell className="font-medium">{kpi.code}</TableCell>
-                    <TableCell>
-                      <div className="max-w-xs">
-                        <div className="font-medium text-sm">{kpi.name}</div>
+                    <TableCell className="w-[220px] text-xs font-semibold text-gray-600 align-top">
+                      <div className="w-[220px] whitespace-normal break-all leading-snug" title={kpi.code}>{kpi.code}</div>
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <div className="w-[460px] max-w-[460px]">
+                        <div className="font-semibold text-base leading-tight">{kpi.name}</div>
                         <div className="text-xs text-gray-500 truncate">{kpi.description}</div>
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm">{kpi.goalName}</TableCell>
-                    <TableCell className="text-sm">{kpi.officeName}</TableCell>
-                    <TableCell>{kpi.target} {kpi.unit}</TableCell>
-                    <TableCell>
+                    <TableCell className="text-sm align-top">{kpi.goalName}</TableCell>
+                    <TableCell className="text-sm align-top">{kpi.officeName}</TableCell>
+                    <TableCell className="text-sm align-top">{kpi.assignmentType || 'N/A'}</TableCell>
+                    <TableCell className="text-sm align-top">{kpi.perspective || 'N/A'}</TableCell>
+                    <TableCell className="text-sm align-top">{kpi.pillar || 'N/A'}</TableCell>
+                    <TableCell className="text-sm align-top">
+                      <div className="max-w-xs truncate" title={kpi.strategicObjective || 'N/A'}>
+                        {kpi.strategicObjective || 'N/A'}
+                      </div>
+                    </TableCell>
+                    <TableCell className="align-top">{kpi.target} {kpi.unit}</TableCell>
+                    <TableCell className="align-top">{kpi.benchmarkTarget > 0 ? `${kpi.benchmarkTarget} ${kpi.unit}` : 'N/A'}</TableCell>
+                    <TableCell className="align-top">
                       <div
                         className={`font-medium ${
                           kpi.performance === 'overachieved'
@@ -183,7 +300,7 @@ export function KPITrackingDashboard() {
                         {kpi.totalAccomplishment} {kpi.unit}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="align-top">
                       <div
                         className={`flex items-center gap-1 text-sm ${
                           kpi.variance > 0
@@ -204,7 +321,7 @@ export function KPITrackingDashboard() {
                         {kpi.variance} {kpi.unit}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="align-top">
                       <div className="flex items-center gap-2">
                         <Progress value={Math.min(kpi.percentage, 100)} className="flex-1" />
                         <span
@@ -225,12 +342,26 @@ export function KPITrackingDashboard() {
                           No updates
                         </div>
                       )}
+                      <div className="mt-1 text-[11px] text-gray-500">
+                        {kpi.sourceSheet && typeof kpi.sourceRow === 'number'
+                          ? `${kpi.sourceSheet} • Row ${kpi.sourceRow}`
+                          : 'No source trace'}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm align-top">
+                      <div className="max-w-xs truncate" title={kpi.keyActivitiesOutputs || 'N/A'}>
+                        {kpi.keyActivitiesOutputs || 'N/A'}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm align-top">
+                      <div className="max-w-xs truncate" title={kpi.bscRemarks || 'N/A'}>
+                        {kpi.bscRemarks || 'N/A'}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          </div>
         </CardContent>
       </Card>
 
@@ -249,11 +380,12 @@ export function KPITrackingDashboard() {
                   key={kpi.id}
                   className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-white rounded-lg border border-red-200"
                 >
-                  <div>
-                    <p className="font-medium text-sm">{kpi.code}: {kpi.name}</p>
-                    <p className="text-xs text-gray-600">{kpi.officeName} • Only {kpi.percentage}% achieved</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-gray-600 break-all" title={kpi.code}>{kpi.code}</p>
+                    <p className="font-medium text-sm break-words leading-snug mt-0.5" title={kpi.name}>{kpi.name}</p>
+                    <p className="text-xs text-gray-600 break-words">{kpi.officeName} • Only {kpi.percentage}% achieved</p>
                   </div>
-                  <Badge variant="destructive">Action Required</Badge>
+                  <Badge variant="destructive" className="self-start sm:self-auto">Action Required</Badge>
                 </div>
               ))}
             </div>

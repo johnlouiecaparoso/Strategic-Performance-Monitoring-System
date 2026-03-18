@@ -206,11 +206,11 @@ export function MonthlyDashboard() {
           <CardDescription>Accomplishments per KPI by month</CardDescription>
         </CardHeader>
         <CardContent className="max-h-[30rem] overflow-auto">
-          <Table>
+          <Table className="table-fixed min-w-[1200px]">
             <TableHeader>
               <TableRow>
-                <TableHead>KPI Code</TableHead>
-                <TableHead>KPI Name</TableHead>
+                <TableHead className="w-[220px]">KPI Code</TableHead>
+                <TableHead className="w-[460px]">KPI Name</TableHead>
                 <TableHead>January</TableHead>
                 <TableHead>February</TableHead>
                 <TableHead>March</TableHead>
@@ -226,9 +226,11 @@ export function MonthlyDashboard() {
                 
                 return (
                   <TableRow key={kpi.code}>
-                    <TableCell className="font-medium">{kpi.code}</TableCell>
+                    <TableCell className="w-[220px] text-xs font-semibold text-gray-600 align-top">
+                      <div className="w-[220px] whitespace-normal break-all leading-snug" title={kpi.code}>{kpi.code}</div>
+                    </TableCell>
                     <TableCell>
-                      <div className="max-w-xs break-words">{kpi.name}</div>
+                      <div className="w-[460px] max-w-[460px] break-words text-base font-semibold leading-tight">{kpi.name}</div>
                     </TableCell>
                     <TableCell>
                       <div>

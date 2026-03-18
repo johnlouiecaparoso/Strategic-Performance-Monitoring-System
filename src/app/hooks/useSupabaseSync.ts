@@ -25,6 +25,17 @@ interface RTKPIRow {
   goal_id: string; office_id: string; target: number; unit: string;
   status: string; submission_status: string; submission_date: string | null;
   focal_person: string;
+  pillar?: string | null;
+  assignment_type?: string | null;
+  perspective?: string | null;
+  strategic_objective?: string | null;
+  q1_target?: number | null;
+  target_text?: string | null;
+  key_activities_outputs?: string | null;
+  mov_text?: string | null;
+  bsc_remarks?: string | null;
+  source_sheet?: string | null;
+  source_row?: number | null;
 }
 
 interface RTMonthlyRow {
@@ -54,6 +65,17 @@ function rtMapKPI(r: RTKPIRow): KPI {
     submissionStatus: r.submission_status as KPI['submissionStatus'],
     submissionDate: r.submission_date ?? undefined,
     focalPerson: r.focal_person,
+    pillar: r.pillar ?? undefined,
+    assignmentType: r.assignment_type ?? undefined,
+    perspective: r.perspective ?? undefined,
+    strategicObjective: r.strategic_objective ?? undefined,
+    q1Target: r.q1_target ?? undefined,
+    targetText: r.target_text ?? undefined,
+    keyActivitiesOutputs: r.key_activities_outputs ?? undefined,
+    movText: r.mov_text ?? undefined,
+    bscRemarks: r.bsc_remarks ?? undefined,
+    sourceSheet: r.source_sheet ?? undefined,
+    sourceRow: r.source_row ?? undefined,
   };
 }
 

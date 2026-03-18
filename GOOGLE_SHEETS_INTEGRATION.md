@@ -107,6 +107,26 @@ Auto-refresh behavior:
 
 ## Syncing Data to Supabase
 
+### Q1 Accomplishment Matrix (single-sheet mode)
+
+If your source is a single wide sheet (`Q1 Accomplishment Matrix`) instead of separate tabs, use the provided Apps Script at `scripts/google-sheets-sync.gs`.
+
+What it does:
+- Reads all rows from `Q1 Accomplishment Matrix`.
+- Sends them to Supabase Edge Function as `{ table: 'q1_matrix', rows: [...] }`.
+- Edge function normalizes each row into `goals`, `offices`, `kpis`, `kpi_assignments`, `monthly_accomplishments`, and `issues`.
+
+Required setup:
+1. Deploy latest Edge Function:
+  - `supabase functions deploy sheets-sync --no-verify-jwt`
+2. Ensure Edge Function secret exists:
+  - `SHEETS_SYNC_SECRET`
+3. In Google Apps Script, set:
+  - `EDGE_FUNCTION_URL`
+  - `SHEETS_SYNC_SECRET`
+  - `MATRIX_SHEET_NAME`
+4. Run `syncQ1MatrixToSupabase()`.
+
 ### Manual Sync Process
 
 1. Admin navigates to the sync dashboard

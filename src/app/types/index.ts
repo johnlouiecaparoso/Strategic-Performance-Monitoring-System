@@ -2,7 +2,7 @@
 
 export type UserRole = 'admin' | 'encoder' | 'validator' | 'executive';
 
-export type KPIStatus = 'completed' | 'ongoing' | 'delayed' | 'not_started';
+export type KPIStatus = 'completed' | 'ongoing' | 'delayed' | 'not_started' | 'for_validation';
 
 export type SubmissionStatus = 'submitted' | 'not_submitted' | 'late';
 
@@ -41,6 +41,17 @@ export interface KPI {
   submissionStatus: SubmissionStatus;
   submissionDate?: string;
   focalPerson: string;
+  pillar?: string;
+  assignmentType?: string;
+  perspective?: string;
+  strategicObjective?: string;
+  q1Target?: number;
+  targetText?: string;
+  keyActivitiesOutputs?: string;
+  movText?: string;
+  bscRemarks?: string;
+  sourceSheet?: string;
+  sourceRow?: number;
 }
 
 export interface MonthlyAccomplishment {

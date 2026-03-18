@@ -118,19 +118,34 @@ function parseUsers(values: string[][]): User[] {
 
 function parseKpis(values: string[][]): KPI[] {
   return mapRows(values).map((row) => ({
-    id: row.id,
-    code: row.code,
-    name: row.name,
-    description: row.description,
-    goalId: row.goalid,
-    officeId: row.officeid,
-    target: toNumber(row.target),
-    unit: row.unit,
+    id: row.id || `kpi-${normalizeKey(row.sourcesheet || 'sheet')}-${row.sourcerow || Math.random().toString(36).slice(2, 8)}`,
+    code: row.code || `KPI-${row.sourcerow || row.id || ''}`,
+    name: row.name || row.kpistrategicmeasure || row.kpimeasure || '',
+    description: row.description || row.strategicobjective || '',
+    goalId: row.goalid || `goal-${normalizeKey(row.goal || 'unknown')}`,
+    officeId: row.officeid || `office-${normalizeKey(row.assignedofficeunit || row.office || 'unknown')}`,
+    target: toNumber(row.target || row.target2026frombsc),
+    unit: row.unit || 'count',
     status: (row.status as KPI['status']) || 'not_started',
     submissionStatus: (row.submissionstatus as KPI['submissionStatus']) || 'not_submitted',
     submissionDate: row.submissiondate || undefined,
     focalPerson: row.focalperson || '',
-  })).filter((kpi) => kpi.id && kpi.code && kpi.goalId && kpi.officeId);
+    pillar: row.pillar || undefined,
+    assignmentType: row.assignmenttype || undefined,
+    perspective: row.perspective || undefined,
+    strategicObjective: row.strategicobjective || undefined,
+    q1Target: toNumber(row.q1target, NaN),
+    targetText: row.target2026frombsc || undefined,
+    keyActivitiesOutputs: row.keyactivitiesoutputs || undefined,
+    movText: row.meansofverificationmov || undefined,
+    bscRemarks: row.bscremarks || undefined,
+    sourceSheet: row.sourcesheet || undefined,
+    sourceRow: toNumber(row.sourcerow, NaN),
+  })).map((kpi) => ({
+    ...kpi,
+    q1Target: Number.isFinite(kpi.q1Target as number) ? kpi.q1Target : undefined,
+    sourceRow: Number.isFinite(kpi.sourceRow as number) ? kpi.sourceRow : undefined,
+  })).filter((kpi) => kpi.id && kpi.code && kpi.goalId && kpi.officeId && kpi.name);
 }
 
 function parseMonthlyAccomplishments(values: string[][]): MonthlyAccomplishment[] {

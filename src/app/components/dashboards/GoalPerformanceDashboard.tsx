@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { GoalPerformanceChart } from '../charts/GoalPerformanceChart';
-import { getKPIsByGoal, getAccomplishmentsByKPI } from '../../utils/analytics';
+import { getKPIsByGoal, getKPIBenchmarkTarget, getKPIQ1Progress } from '../../utils/analytics';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Badge } from '../ui/badge';
 import { AlertCircle } from 'lucide-react';
@@ -9,13 +9,40 @@ import { useAppData } from '../../data/store';
 
 export function GoalPerformanceDashboard() {
   const { goals, offices } = useAppData();
-  const goalData = goals.map(goal => {
-    const goalKPIs = getKPIsByGoal(goal.id);
-    const totalTarget = goalKPIs.reduce((sum, kpi) => sum + kpi.target, 0);
-    const totalAccomplished = goalKPIs.reduce((sum, kpi) => {
-      const accs = getAccomplishmentsByKPI(kpi.id);
-      return sum + accs.reduce((s, a) => s + a.accomplishment, 0);
-    }, 0);
+  const goalGroups = Array.from(
+    goals.reduce((map, goal) => {
+      const goalKPIs = getKPIsByGoal(goal.id);
+      if (goalKPIs.length === 0) return map;
+
+      const key = Number(goal.number) || 0;
+      if (!map.has(key)) {
+        map.set(key, {
+          number: key,
+          name: goal.name,
+          description: goal.description,
+          kpis: [...goalKPIs],
+        });
+      } else {
+        const existing = map.get(key)!;
+        const existingIds = new Set(existing.kpis.map((kpi) => kpi.id));
+        goalKPIs.forEach((kpi) => {
+          if (!existingIds.has(kpi.id)) {
+            existing.kpis.push(kpi);
+            existingIds.add(kpi.id);
+          }
+        });
+      }
+
+      return map;
+    }, new Map<number, { number: number; name: string; description: string; kpis: ReturnType<typeof getKPIsByGoal> }>()),
+  )
+    .map(([, value]) => value)
+    .sort((a, b) => a.number - b.number);
+
+  const goalData = goalGroups.map((goal) => {
+    const goalKPIs = goal.kpis;
+    const totalTarget = goalKPIs.reduce((sum, kpi) => sum + getKPIBenchmarkTarget(kpi), 0);
+    const totalAccomplished = goalKPIs.reduce((sum, kpi) => sum + getKPIQ1Progress(kpi).accomplishment, 0);
     const percentage = totalTarget > 0 ? (totalAccomplished / totalTarget) * 100 : 0;
     
     return {
@@ -49,10 +76,10 @@ export function GoalPerformanceDashboard() {
 
       {/* Goal Statistics */}
       <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
-        {goalData.map((data, idx) => (
-          <Card key={idx}>
+        {goalData.map((data) => (
+          <Card key={data.goal}>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Goal {idx + 1}</CardTitle>
+              <CardTitle className="text-sm">{data.goal}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-semibold text-blue-600">{data.percentage}%</div>
@@ -74,20 +101,20 @@ export function GoalPerformanceDashboard() {
           <CardDescription>Office contributions and KPI status per goal</CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="goal-1">
+          <Tabs defaultValue={goalGroups[0] ? `goal-${goalGroups[0].number}` : undefined}>
             <div className="overflow-x-auto pb-1">
               <TabsList className="flex min-w-max">
-              {goals.map(goal => (
-                <TabsTrigger key={goal.id} value={goal.id}>
+              {goalGroups.map(goal => (
+                <TabsTrigger key={`goal-tab-${goal.number}`} value={`goal-${goal.number}`}>
                   Goal {goal.number}
                 </TabsTrigger>
               ))}
             </TabsList>            </div>            
-            {goals.map(goal => {
-              const goalKPIs = getKPIsByGoal(goal.id);
+            {goalGroups.map(goal => {
+              const goalKPIs = goal.kpis;
               
               return (
-                <TabsContent key={goal.id} value={goal.id} className="space-y-4">
+                <TabsContent key={`goal-content-${goal.number}`} value={`goal-${goal.number}`} className="space-y-4">
                   <div className="border-l-4 border-blue-500 pl-4 py-2">
                     <h3 className="font-semibold">{goal.name}</h3>
                     <p className="text-sm text-gray-600 mt-1">{goal.description}</p>
@@ -96,36 +123,34 @@ export function GoalPerformanceDashboard() {
                   <div className="space-y-3 max-h-[28rem] overflow-auto pr-1">
                     {goalKPIs.map(kpi => {
                       const office = offices.find(o => o.id === kpi.officeId);
-                      const accs = getAccomplishmentsByKPI(kpi.id);
-                      const totalAcc = accs.reduce((s, a) => s + a.accomplishment, 0);
-                      const percentage = kpi.target > 0 ? (totalAcc / kpi.target) * 100 : 0;
+                      const { accomplishment: totalAcc, benchmarkTarget, percentage } = getKPIQ1Progress(kpi);
                       
                       return (
                         <div key={kpi.id} className="border rounded-lg p-4">
                           <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">{kpi.code}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="font-medium text-sm text-gray-700 truncate" title={kpi.code}>{kpi.code}</span>
                                 <Badge 
                                   variant={
                                     kpi.status === 'completed' ? 'default' :
                                     kpi.status === 'delayed' ? 'destructive' :
                                     'secondary'
                                   }
-                                  className="capitalize"
+                                  className="capitalize flex-shrink-0"
                                 >
                                   {kpi.status.replace('_', ' ')}
                                 </Badge>
                               </div>
-                              <p className="text-sm text-gray-700 mt-1 break-words">{kpi.name}</p>
-                              <p className="text-xs text-gray-500 mt-1">
+                              <p className="text-sm text-gray-700 mt-1 break-words" title={kpi.name}>{kpi.name}</p>
+                              <p className="text-xs text-gray-500 mt-1 truncate" title={`${office?.name || ''} • ${kpi.focalPerson}`}>
                                 {office?.name} • {kpi.focalPerson}
                               </p>
                             </div>
-                            <div className="text-right ml-4">
+                            <div className="text-right ml-4 flex-shrink-0">
                               <div className="text-lg font-semibold">{percentage.toFixed(1)}%</div>
                               <div className="text-xs text-gray-500">
-                                {totalAcc} / {kpi.target} {kpi.unit}
+                                {totalAcc} / {benchmarkTarget} {kpi.unit}
                               </div>
                             </div>
                           </div>

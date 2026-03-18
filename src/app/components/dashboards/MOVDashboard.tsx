@@ -13,6 +13,12 @@ export function MOVDashboard() {
   const validatedMOVs = movs.filter(m => m.validated);
   const pendingValidation = movs.filter(m => !m.validated);
   const kpisWithoutMOV = kpis.filter(kpi => !movs.some(m => m.kpiId === kpi.id));
+  const kpisWithMOVText = kpis.filter((kpi) => !!kpi.movText?.trim()).length;
+  const combinedMOVCoverage = kpis.filter((kpi) => {
+    const hasFileMOV = movs.some((mov) => mov.kpiId === kpi.id);
+    const hasTextMOV = !!kpi.movText?.trim();
+    return hasFileMOV || hasTextMOV;
+  }).length;
 
   const movData = [
     { name: 'With MOV', value: movStats.kpisWithMOV, color: '#10b981' },
@@ -32,7 +38,7 @@ export function MOVDashboard() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">MOV Completeness</CardTitle>
@@ -75,6 +81,18 @@ export function MOVDashboard() {
           <CardContent>
             <div className="text-2xl font-semibold text-orange-600">{pendingValidation.length}</div>
             <p className="text-xs text-gray-500 mt-1">Awaiting review</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">MOV in Sheet</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-semibold text-blue-600">{kpisWithMOVText}</div>
+            <p className="text-xs text-gray-500 mt-1">
+              {combinedMOVCoverage} combined KPI coverage
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -150,12 +168,12 @@ export function MOVDashboard() {
               These KPIs have no means of verification uploaded
             </CardDescription>
           </CardHeader>
-          <CardContent className="max-h-[24rem] overflow-auto">
-            <Table>
+          <CardContent className="max-h-[24rem] overflow-auto pb-2 [scrollbar-gutter:stable]">
+            <Table className="table-fixed min-w-[1200px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>KPI Code</TableHead>
-                  <TableHead>KPI Name</TableHead>
+                  <TableHead className="w-[120px] sm:w-[160px] whitespace-nowrap">KPI Code</TableHead>
+                  <TableHead className="w-[280px] sm:w-[520px] whitespace-nowrap">KPI Name</TableHead>
                   <TableHead>Office</TableHead>
                   <TableHead>Focal Person</TableHead>
                 </TableRow>
@@ -165,8 +183,10 @@ export function MOVDashboard() {
                   const office = offices.find(o => o.id === kpi.officeId);
                   return (
                     <TableRow key={kpi.id}>
-                      <TableCell className="font-medium">{kpi.code}</TableCell>
-                      <TableCell>{kpi.name}</TableCell>
+                      <TableCell className="w-[120px] sm:w-[160px] text-[11px] sm:text-xs font-semibold text-gray-600 align-top">
+                        <div className="w-[120px] sm:w-[160px] whitespace-normal break-all leading-tight" title={kpi.code}>{kpi.code}</div>
+                      </TableCell>
+                      <TableCell className="w-[280px] sm:w-[520px] text-base font-semibold leading-tight align-top">{kpi.name}</TableCell>
                       <TableCell>{office?.name}</TableCell>
                       <TableCell>{kpi.focalPerson}</TableCell>
                     </TableRow>
@@ -293,6 +313,38 @@ export function MOVDashboard() {
                       ) : (
                         <span className="text-xs text-gray-400">-</span>
                       )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Sheet MOV Entries</CardTitle>
+          <CardDescription>MOV text from Google Sheet (Means of Verification column)</CardDescription>
+        </CardHeader>
+        <CardContent className="max-h-[24rem] overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>KPI</TableHead>
+                <TableHead>Office</TableHead>
+                <TableHead>MOV Text</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {kpis.filter((kpi) => !!kpi.movText?.trim()).map((kpi) => {
+                const office = offices.find((o) => o.id === kpi.officeId);
+                return (
+                  <TableRow key={kpi.id}>
+                    <TableCell className="font-medium">{kpi.code}</TableCell>
+                    <TableCell>{office?.name}</TableCell>
+                    <TableCell className="max-w-xl">
+                      <span className="text-sm break-words">{kpi.movText}</span>
                     </TableCell>
                   </TableRow>
                 );

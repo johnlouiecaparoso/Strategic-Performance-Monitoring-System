@@ -39,6 +39,17 @@ interface KPIRow {
   submission_status: string;
   submission_date: string | null;
   focal_person: string;
+  pillar: string | null;
+  assignment_type: string | null;
+  perspective: string | null;
+  strategic_objective: string | null;
+  q1_target: number | null;
+  target_text: string | null;
+  key_activities_outputs: string | null;
+  mov_text: string | null;
+  bsc_remarks: string | null;
+  source_sheet: string | null;
+  source_row: number | null;
 }
 
 interface MonthlyRow {
@@ -108,6 +119,17 @@ function mapKPI(r: KPIRow): KPI {
     submissionStatus: r.submission_status as KPI['submissionStatus'],
     submissionDate: r.submission_date ?? undefined,
     focalPerson: r.focal_person,
+    pillar: r.pillar ?? undefined,
+    assignmentType: r.assignment_type ?? undefined,
+    perspective: r.perspective ?? undefined,
+    strategicObjective: r.strategic_objective ?? undefined,
+    q1Target: r.q1_target ?? undefined,
+    targetText: r.target_text ?? undefined,
+    keyActivitiesOutputs: r.key_activities_outputs ?? undefined,
+    movText: r.mov_text ?? undefined,
+    bscRemarks: r.bsc_remarks ?? undefined,
+    sourceSheet: r.source_sheet ?? undefined,
+    sourceRow: r.source_row ?? undefined,
   };
 }
 
@@ -219,6 +241,17 @@ export async function insertKPIs(data: KPI[]): Promise<void> {
     submission_status: k.submissionStatus,
     submission_date: k.submissionDate ?? null,
     focal_person: k.focalPerson,
+    pillar: k.pillar ?? null,
+    assignment_type: k.assignmentType ?? null,
+    perspective: k.perspective ?? null,
+    strategic_objective: k.strategicObjective ?? null,
+    q1_target: k.q1Target ?? null,
+    target_text: k.targetText ?? null,
+    key_activities_outputs: k.keyActivitiesOutputs ?? null,
+    mov_text: k.movText ?? null,
+    bsc_remarks: k.bscRemarks ?? null,
+    source_sheet: k.sourceSheet ?? null,
+    source_row: k.sourceRow ?? null,
   }));
 
   const { error } = await supabase.from('kpis').upsert(rows, { onConflict: 'id' });

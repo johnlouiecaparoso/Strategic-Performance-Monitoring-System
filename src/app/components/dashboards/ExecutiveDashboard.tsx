@@ -7,11 +7,16 @@ import {
   getTopPerformingGoals, 
   getOfficesWithMissingSubmissions,
   getMonthlyTrend,
-  calculateOverallAccomplishment 
+  calculateOverallAccomplishment,
+  getDataQualitySummary,
+  getPriorityKPIs,
+  getKPIDimensionBreakdown,
+  getSourceTraceSummary,
 } from '../../utils/analytics';
 import { Target, CheckCircle, Clock, AlertTriangle, TrendingUp } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { useAppData } from '../../data/store';
 
 export function ExecutiveDashboard() {
@@ -22,12 +27,43 @@ export function ExecutiveDashboard() {
   const missingOfficeIds = getOfficesWithMissingSubmissions();
   const monthlyTrend = getMonthlyTrend();
   const overallAccomplishment = calculateOverallAccomplishment();
+  const quality = getDataQualitySummary();
+  const priorityKPIs = getPriorityKPIs(8);
+  const pillarBreakdown = getKPIDimensionBreakdown('pillar', 6);
+  const assignmentBreakdown = getKPIDimensionBreakdown('assignmentType', 6);
+  const perspectiveBreakdown = getKPIDimensionBreakdown('perspective', 6);
+  const sourceTrace = getSourceTraceSummary();
+
+  const colors = [
+    'var(--color-chart-1)',
+    'var(--color-chart-2)',
+    'var(--color-chart-3)',
+    'var(--color-chart-4)',
+    'var(--color-chart-5)',
+  ];
+
+  const toDonutData = (rows: Array<{ name: string; count: number }>) =>
+    rows.map((row, index) => ({
+      name: row.name,
+      value: row.count,
+      color: colors[index % colors.length],
+    }));
+
+  const pillarDonut = toDonutData(pillarBreakdown);
+  const assignmentDonut = toDonutData(assignmentBreakdown);
+  const perspectiveDonut = toDonutData(perspectiveBreakdown);
+  const sourceDonut = sourceTrace.bySheet.slice(0, 5).map((row, index) => ({
+    name: row.name,
+    value: row.count,
+    color: colors[index % colors.length],
+  }));
 
   const statusData = [
     { name: 'Completed', value: statusBreakdown.completed, color: '#10b981' },
     { name: 'Ongoing', value: statusBreakdown.ongoing, color: '#3b82f6' },
     { name: 'Delayed', value: statusBreakdown.delayed, color: '#f59e0b' },
     { name: 'Not Started', value: statusBreakdown.notStarted, color: '#ef4444' },
+    { name: 'For Validation', value: statusBreakdown.forValidation, color: '#6366f1' },
   ];
 
   const submissionData = [
@@ -187,6 +223,78 @@ export function ExecutiveDashboard() {
         </Card>
       </div>
 
+      {/* Matrix Dimensions */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Pillar Distribution</CardTitle>
+            <CardDescription>How KPIs are spread by pillar</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <StatusDonutChart data={pillarDonut} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Assignment Type</CardTitle>
+            <CardDescription>Strategic/Core/Support and other assignments</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <StatusDonutChart data={assignmentDonut} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Perspective Mix</CardTitle>
+            <CardDescription>Coverage by perspective</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <StatusDonutChart data={perspectiveDonut} />
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Dimension Performance Snapshot</CardTitle>
+          <CardDescription>Average Q1 progress and delayed count by matrix grouping</CardDescription>
+        </CardHeader>
+        <CardContent className="max-h-[24rem] overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Dimension</TableHead>
+                <TableHead>Group</TableHead>
+                <TableHead>KPI Count</TableHead>
+                <TableHead>Avg Q1 Progress</TableHead>
+                <TableHead>Delayed</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[
+                ...pillarBreakdown.map((row) => ({ dimension: 'Pillar', ...row })),
+                ...assignmentBreakdown.map((row) => ({ dimension: 'Assignment Type', ...row })),
+                ...perspectiveBreakdown.map((row) => ({ dimension: 'Perspective', ...row })),
+              ].map((row, idx) => (
+                <TableRow key={`${row.dimension}-${row.name}-${idx}`}>
+                  <TableCell>{row.dimension}</TableCell>
+                  <TableCell className="font-medium">{row.name}</TableCell>
+                  <TableCell>{row.count}</TableCell>
+                  <TableCell>{row.avgProgress.toFixed(1)}%</TableCell>
+                  <TableCell>
+                    <Badge variant={row.delayed > 0 ? 'destructive' : 'secondary'}>
+                      {row.delayed}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
       {/* Delayed KPIs Alert */}
       {statusBreakdown.delayed > 0 && (
         <Card className="border-orange-200 bg-orange-50">
@@ -203,6 +311,122 @@ export function ExecutiveDashboard() {
           </CardContent>
         </Card>
       )}
+
+      {/* Data quality summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Data Quality Snapshot</CardTitle>
+          <CardDescription>Missing or incomplete matrix inputs that can distort reports</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            <div className="rounded-lg border p-3">
+              <div className="text-xs text-gray-500">Missing Q1 Target</div>
+              <div className="text-2xl font-semibold">{quality.missingQ1Target}</div>
+            </div>
+            <div className="rounded-lg border p-3">
+              <div className="text-xs text-gray-500">No Monthly Updates</div>
+              <div className="text-2xl font-semibold">{quality.noMonthlyUpdates}</div>
+            </div>
+            <div className="rounded-lg border p-3">
+              <div className="text-xs text-gray-500">Missing MOV Text</div>
+              <div className="text-2xl font-semibold">{quality.missingMOVText}</div>
+            </div>
+            <div className="rounded-lg border p-3">
+              <div className="text-xs text-gray-500">Missing Focal Person</div>
+              <div className="text-2xl font-semibold">{quality.missingFocalPerson}</div>
+            </div>
+            <div className="rounded-lg border p-3">
+              <div className="text-xs text-gray-500">Missing Submission Date</div>
+              <div className="text-2xl font-semibold">{quality.missingSubmissionDate}</div>
+            </div>
+            <div className="rounded-lg border p-3">
+              <div className="text-xs text-gray-500">Total KPI Rows</div>
+              <div className="text-2xl font-semibold">{quality.total}</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Source Traceability</CardTitle>
+            <CardDescription>How many KPIs have source sheet and source row mapped</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 grid-cols-3">
+              <div className="rounded-lg border p-3">
+                <div className="text-xs text-gray-500">Total KPI Rows</div>
+                <div className="text-2xl font-semibold">{sourceTrace.total}</div>
+              </div>
+              <div className="rounded-lg border p-3">
+                <div className="text-xs text-gray-500">Traceable</div>
+                <div className="text-2xl font-semibold text-green-600">{sourceTrace.traced}</div>
+              </div>
+              <div className="rounded-lg border p-3">
+                <div className="text-xs text-gray-500">Untraced</div>
+                <div className="text-2xl font-semibold text-orange-600">{sourceTrace.untraced}</div>
+              </div>
+            </div>
+            <Progress
+              className="mt-4"
+              value={sourceTrace.total > 0 ? (sourceTrace.traced / sourceTrace.total) * 100 : 0}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Source Sheets</CardTitle>
+            <CardDescription>Distribution by source sheet values</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <StatusDonutChart data={sourceDonut} />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Priority KPIs */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Priority KPIs (Needs Improvement)</CardTitle>
+          <CardDescription>Top rows that need immediate action based on status, target gap, and open issues</CardDescription>
+        </CardHeader>
+        <CardContent className="max-h-[28rem] overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>KPI</TableHead>
+                <TableHead>Office</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Q1 Progress</TableHead>
+                <TableHead>Open Issues</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {priorityKPIs.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell>
+                    <div className="text-xs font-semibold text-gray-600 break-all" title={item.code}>{item.code}</div>
+                    <div className="text-sm text-gray-700 max-w-xs break-words leading-snug" title={item.name}>{item.name}</div>
+                  </TableCell>
+                  <TableCell className="text-sm">{item.officeName}</TableCell>
+                  <TableCell>
+                    <Badge variant={item.status === 'delayed' ? 'destructive' : 'secondary'}>
+                      {item.status.replace('_', ' ')}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {item.q1Target > 0 ? `${item.q1Accomplishment.toFixed(2)} / ${item.q1Target.toFixed(2)} (${item.q1Percent.toFixed(1)}%)` : 'No Q1 target'}
+                  </TableCell>
+                  <TableCell>{item.openIssues}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }

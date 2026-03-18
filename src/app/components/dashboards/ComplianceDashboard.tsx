@@ -118,11 +118,11 @@ export function ComplianceDashboard() {
             </div>
           </CardHeader>
           <CardContent className="max-h-[26rem] overflow-auto">
-            <Table>
+            <Table className="table-fixed min-w-[1200px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>KPI Code</TableHead>
-                  <TableHead>KPI Name</TableHead>
+                  <TableHead className="w-[220px]">KPI Code</TableHead>
+                  <TableHead className="w-[460px]">KPI Name</TableHead>
                   <TableHead>Office</TableHead>
                   <TableHead>Focal Person</TableHead>
                   <TableHead>Status</TableHead>
@@ -133,8 +133,10 @@ export function ComplianceDashboard() {
                   const office = offices.find(o => o.id === kpi.officeId);
                   return (
                     <TableRow key={kpi.id}>
-                      <TableCell className="font-medium">{kpi.code}</TableCell>
-                      <TableCell>{kpi.name}</TableCell>
+                      <TableCell className="w-[220px] text-xs font-semibold text-gray-600 align-top">
+                        <div className="w-[220px] whitespace-normal break-all leading-snug" title={kpi.code}>{kpi.code}</div>
+                      </TableCell>
+                      <TableCell className="w-[460px] text-base font-semibold leading-tight">{kpi.name}</TableCell>
                       <TableCell>{office?.name}</TableCell>
                       <TableCell>{kpi.focalPerson}</TableCell>
                       <TableCell>
@@ -159,11 +161,11 @@ export function ComplianceDashboard() {
             </div>
           </CardHeader>
           <CardContent className="max-h-[26rem] overflow-auto">
-            <Table>
+            <Table className="table-fixed min-w-[1200px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>KPI Code</TableHead>
-                  <TableHead>KPI Name</TableHead>
+                  <TableHead className="w-[220px]">KPI Code</TableHead>
+                  <TableHead className="w-[460px]">KPI Name</TableHead>
                   <TableHead>Office</TableHead>
                   <TableHead>Focal Person</TableHead>
                   <TableHead>Submission Date</TableHead>
@@ -174,8 +176,10 @@ export function ComplianceDashboard() {
                   const office = offices.find(o => o.id === kpi.officeId);
                   return (
                     <TableRow key={kpi.id}>
-                      <TableCell className="font-medium">{kpi.code}</TableCell>
-                      <TableCell>{kpi.name}</TableCell>
+                      <TableCell className="w-[220px] text-xs font-semibold text-gray-600 align-top">
+                        <div className="w-[220px] whitespace-normal break-all leading-snug" title={kpi.code}>{kpi.code}</div>
+                      </TableCell>
+                      <TableCell className="w-[460px] text-base font-semibold leading-tight">{kpi.name}</TableCell>
                       <TableCell>{office?.name}</TableCell>
                       <TableCell>{kpi.focalPerson}</TableCell>
                       <TableCell>
@@ -200,11 +204,11 @@ export function ComplianceDashboard() {
           <CardDescription>Complete submission tracking</CardDescription>
         </CardHeader>
         <CardContent className="max-h-[30rem] overflow-auto">
-          <Table>
+          <Table className="table-fixed min-w-[1300px]">
             <TableHeader>
               <TableRow>
-                <TableHead>KPI Code</TableHead>
-                <TableHead>KPI Name</TableHead>
+                <TableHead className="w-[220px]">KPI Code</TableHead>
+                <TableHead className="w-[460px]">KPI Name</TableHead>
                 <TableHead>Office</TableHead>
                 <TableHead>Focal Person</TableHead>
                 <TableHead>Submission Date</TableHead>
@@ -216,10 +220,12 @@ export function ComplianceDashboard() {
                 const office = offices.find(o => o.id === kpi.officeId);
                 return (
                   <TableRow key={kpi.id}>
-                    <TableCell className="font-medium">{kpi.code}</TableCell>
+                    <TableCell className="w-[220px] text-xs font-semibold text-gray-600 align-top">
+                      <div className="w-[220px] whitespace-normal break-all leading-snug" title={kpi.code}>{kpi.code}</div>
+                    </TableCell>
                     <TableCell>
-                      <div className="max-w-xs">
-                        <div className="font-medium text-sm">{kpi.name}</div>
+                      <div className="w-[460px] max-w-[460px]">
+                        <div className="font-semibold text-base leading-tight">{kpi.name}</div>
                         <div className="text-xs text-gray-500 truncate">{kpi.description}</div>
                       </div>
                     </TableCell>
