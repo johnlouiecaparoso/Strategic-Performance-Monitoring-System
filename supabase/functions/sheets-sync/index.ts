@@ -88,6 +88,24 @@ const COLUMN_MAP: Record<AllowedTable, Record<string, string>> = {
     submissionstatus: 'submission_status',
     submissiondate: 'submission_date',
     focalperson: 'focal_person',
+    pillar: 'pillar',
+    assignmenttype: 'assignment_type',
+    perspective: 'perspective',
+    strategicobjective: 'strategic_objective',
+    q1target: 'q1_target',
+    q2target: 'q2_target',
+    q3target: 'q3_target',
+    q4target: 'q4_target',
+    target2026frombsc: 'target_text',
+    keyactivitiesoutputs: 'key_activities_outputs',
+    meansofverification: 'means_of_verification',
+    meansofverificationmov: 'mov_text',
+    issueschallenges: 'issues_challenges',
+    assistanceneededrecommendations: 'assistance_needed_recommendations',
+    validationstate: 'validation_state',
+    bscremarks: 'bsc_remarks',
+    sourcesheet: 'source_sheet',
+    sourcerow: 'source_row',
   },
   monthly_accomplishments: {
     id: 'id',
@@ -139,12 +157,25 @@ const COLUMN_MAP: Record<AllowedTable, Record<string, string>> = {
     kpistrategicmeasure: 'kpi_strategic_measure',
     target2026frombsc: 'target_2026_from_bsc',
     q1target: 'q1_target',
+    q2target: 'q2_target',
+    q3target: 'q3_target',
+    q4target: 'q4_target',
     january: 'january',
     february: 'february',
     march: 'march',
+    april: 'april',
+    may: 'may',
+    june: 'june',
+    july: 'july',
+    august: 'august',
+    september: 'september',
+    october: 'october',
+    november: 'november',
+    december: 'december',
     totalq1accomplishment: 'total_q1_accomplishment',
     accomplishmentvsq1target: 'accomplishment_vs_q1_target',
     keyactivitiesoutputs: 'key_activities_outputs',
+    meansofverification: 'means_of_verification',
     meansofverificationmov: 'means_of_verification_mov',
     status: 'status',
     issueschallenges: 'issues_challenges',
@@ -245,6 +276,14 @@ function statusToSubmissionStatus(submissionDate: string | null): string {
   return submissionDate ? 'submitted' : 'not_submitted';
 }
 
+function statusToValidationState(status: unknown): string {
+  const normalized = String(status ?? '').trim().toLowerCase().replace(/\s+/g, '_');
+  if (normalized === 'for_validation') return 'under_validation';
+  if (normalized === 'completed') return 'approved';
+  if (normalized === 'not_started') return 'draft';
+  return 'submitted';
+}
+
 function buildQ1MatrixPayload(rows: Record<string, unknown>[]) {
   const goals = new Map<string, Record<string, unknown>>();
   const offices = new Map<string, Record<string, unknown>>();
@@ -257,6 +296,15 @@ function buildQ1MatrixPayload(rows: Record<string, unknown>[]) {
     { key: 'january', label: 'January' },
     { key: 'february', label: 'February' },
     { key: 'march', label: 'March' },
+    { key: 'april', label: 'April' },
+    { key: 'may', label: 'May' },
+    { key: 'june', label: 'June' },
+    { key: 'july', label: 'July' },
+    { key: 'august', label: 'August' },
+    { key: 'september', label: 'September' },
+    { key: 'october', label: 'October' },
+    { key: 'november', label: 'November' },
+    { key: 'december', label: 'December' },
   ] as const;
 
   rows.forEach((rawRow, idx) => {
@@ -289,6 +337,9 @@ function buildQ1MatrixPayload(rows: Record<string, unknown>[]) {
 
     const targetRaw = row.target_2026_from_bsc;
     const q1Target = parseNumeric(row.q1_target);
+    const q2Target = parseNumeric(row.q2_target);
+    const q3Target = parseNumeric(row.q3_target);
+    const q4Target = parseNumeric(row.q4_target);
     const targetNumeric = parseNumeric(targetRaw);
     const submissionDate = parseDateISO(row.submission_date);
     const kpiStatus = statusToKpiStatus(row.status);
@@ -311,9 +362,16 @@ function buildQ1MatrixPayload(rows: Record<string, unknown>[]) {
       perspective: String(row.perspective ?? '').trim() || null,
       strategic_objective: String(row.strategic_objective ?? '').trim() || null,
       q1_target: q1Target,
+      q2_target: q2Target,
+      q3_target: q3Target,
+      q4_target: q4Target,
       target_text: targetRaw ? String(targetRaw).trim() : null,
       key_activities_outputs: String(row.key_activities_outputs ?? '').trim() || null,
+      means_of_verification: String(row.means_of_verification ?? '').trim() || null,
       mov_text: String(row.means_of_verification_mov ?? '').trim() || null,
+      issues_challenges: String(row.issues_challenges ?? '').trim() || null,
+      assistance_needed_recommendations: String(row.assistance_needed_recommendations ?? '').trim() || null,
+      validation_state: statusToValidationState(row.status),
       bsc_remarks: String(row.bsc_remarks ?? '').trim() || null,
       source_sheet: sourceSheet,
       source_row: sourceRow,
@@ -335,7 +393,17 @@ function buildQ1MatrixPayload(rows: Record<string, unknown>[]) {
     monthDefs.forEach((monthDef) => {
       const value = parseNumeric(row[monthDef.key]);
       if (value === null) return;
-      const percentage = q1Target && q1Target > 0 ? (value / q1Target) * 100 : 0;
+      const q1Months = ['January', 'February', 'March'];
+      const q2Months = ['April', 'May', 'June'];
+      const q3Months = ['July', 'August', 'September'];
+      const quarterTarget = q1Months.includes(monthDef.label)
+        ? q1Target
+        : q2Months.includes(monthDef.label)
+        ? q2Target
+        : q3Months.includes(monthDef.label)
+        ? q3Target
+        : q4Target;
+      const percentage = quarterTarget && quarterTarget > 0 ? (value / quarterTarget) * 100 : 0;
       monthly.set(`${kpiId}-${monthDef.label}`, {
         id: `${kpiId}-${monthDef.label.toLowerCase()}`,
         kpi_id: kpiId,
@@ -411,7 +479,7 @@ function transformRow(
     if (mappedKey === 'validated') {
       const str = String(value).trim().toLowerCase();
       transformed[mappedKey] = str === 'true' || str === 'yes' || str === '1';
-    } else if (['target', 'accomplishment', 'percentage', 'number'].includes(mappedKey)) {
+    } else if (['target', 'q1_target', 'q2_target', 'q3_target', 'q4_target', 'accomplishment', 'percentage', 'number'].includes(mappedKey)) {
       const num = parseNumeric(value);
       transformed[mappedKey] = num ?? 0;
     } else if (mappedKey === 'source_row') {

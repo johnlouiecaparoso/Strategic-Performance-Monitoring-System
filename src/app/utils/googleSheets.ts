@@ -1,5 +1,6 @@
 import type { Goal, Issue, KPI, MonthlyAccomplishment, MOV, Office, User } from '../types';
 import type { AppDataSnapshot } from '../data/store';
+import { normalizeAssignmentType, normalizeKpiStatus } from './bscGovernance';
 
 export interface SheetData {
   range: string;
@@ -126,24 +127,34 @@ function parseKpis(values: string[][]): KPI[] {
     officeId: row.officeid || `office-${normalizeKey(row.assignedofficeunit || row.office || 'unknown')}`,
     target: toNumber(row.target || row.target2026frombsc),
     unit: row.unit || 'count',
-    status: (row.status as KPI['status']) || 'not_started',
+    status: normalizeKpiStatus(row.status),
     submissionStatus: (row.submissionstatus as KPI['submissionStatus']) || 'not_submitted',
     submissionDate: row.submissiondate || undefined,
     focalPerson: row.focalperson || '',
     pillar: row.pillar || undefined,
-    assignmentType: row.assignmenttype || undefined,
+    assignmentType: normalizeAssignmentType(row.assignmenttype),
     perspective: row.perspective || undefined,
     strategicObjective: row.strategicobjective || undefined,
     q1Target: toNumber(row.q1target, NaN),
+    q2Target: toNumber(row.q2target, NaN),
+    q3Target: toNumber(row.q3target, NaN),
+    q4Target: toNumber(row.q4target, NaN),
     targetText: row.target2026frombsc || undefined,
     keyActivitiesOutputs: row.keyactivitiesoutputs || undefined,
+    meansOfVerification: row.meansofverification || row.meansofverificationmov || undefined,
     movText: row.meansofverificationmov || undefined,
+    issuesChallenges: row.issueschallenges || undefined,
+    assistanceNeededRecommendations: row.assistanceneededrecommendations || undefined,
+    validationState: (row.validationstate as KPI['validationState']) || undefined,
     bscRemarks: row.bscremarks || undefined,
     sourceSheet: row.sourcesheet || undefined,
     sourceRow: toNumber(row.sourcerow, NaN),
   })).map((kpi) => ({
     ...kpi,
     q1Target: Number.isFinite(kpi.q1Target as number) ? kpi.q1Target : undefined,
+    q2Target: Number.isFinite(kpi.q2Target as number) ? kpi.q2Target : undefined,
+    q3Target: Number.isFinite(kpi.q3Target as number) ? kpi.q3Target : undefined,
+    q4Target: Number.isFinite(kpi.q4Target as number) ? kpi.q4Target : undefined,
     sourceRow: Number.isFinite(kpi.sourceRow as number) ? kpi.sourceRow : undefined,
   })).filter((kpi) => kpi.id && kpi.code && kpi.goalId && kpi.officeId && kpi.name);
 }

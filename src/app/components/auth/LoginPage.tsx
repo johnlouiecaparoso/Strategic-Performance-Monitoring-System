@@ -40,14 +40,14 @@ export function LoginPage() {
         <div className="flex flex-col items-center gap-3 mb-8">
           <img
             src="/csu-logo.jpg"
-            alt="SPMS Logo"
+            alt="Balance Scorecard Logo"
             className="size-16 rounded-full object-cover bg-white"
             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
           />
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900">SPMS</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Strategic Performance Monitoring System
+            <h1 className="text-3xl font-extrabold text-gray-900 tracking-wide">BSC</h1>
+            <p className="text-base text-gray-600 mt-1 font-medium">
+              Balance Scorecard
             </p>
           </div>
         </div>
@@ -123,7 +123,7 @@ export function LoginPage() {
         </Card>
 
         <p className="text-center text-xs text-gray-400 mt-6">
-          © {new Date().getFullYear()} SPMS · All rights reserved
+          © {new Date().getFullYear()} Balance Scorecard · All rights reserved
         </p>
         <p className="text-center text-sm text-gray-600 mt-2">
           Need an account?{' '}

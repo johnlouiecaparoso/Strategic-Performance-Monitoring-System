@@ -8,6 +8,7 @@ import { IssuesDashboard } from './components/dashboards/IssuesDashboard';
 import { ComplianceDashboard } from './components/dashboards/ComplianceDashboard';
 import { MOVDashboard } from './components/dashboards/MOVDashboard';
 import { MonthlyDashboard } from './components/dashboards/MonthlyDashboard';
+import { PillarPerformanceDashboard } from './components/dashboards/PillarPerformanceDashboard';
 import { LoginPage } from './components/auth/LoginPage';
 import { RegisterPage } from './components/auth/RegisterPage';
 import { RequireAuth } from './components/auth/RequireAuth';
@@ -64,6 +65,10 @@ export const router = createBrowserRouter([
       {
         path: 'monthly',
         Component: MonthlyDashboard,
+      },
+      {
+        path: 'pillars',
+        Component: PillarPerformanceDashboard,
       },
     ],
   },

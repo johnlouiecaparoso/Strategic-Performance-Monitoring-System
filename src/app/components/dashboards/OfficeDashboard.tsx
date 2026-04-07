@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { getOfficeCompliance, getKPIQ1Progress } from '../../utils/analytics';
+import { getKPIQ1Progress } from '../../utils/analytics';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Badge } from '../ui/badge';
@@ -8,19 +8,63 @@ import { Progress } from '../ui/progress';
 import { Building2, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { useAppData } from '../../data/store';
 
+function isLikelyHttpUrl(value: string) {
+  return /^https?:\/\//i.test(value.trim());
+}
+
 export function OfficeDashboard() {
   const { offices, kpis, monthlyAccomplishments } = useAppData();
-  const [selectedOffice, setSelectedOffice] = useState(offices[0]?.id || '');
+  const officeGroups = useMemo(() => {
+    const grouped = new Map<string, { id: string; name: string; focalPersons: Set<string>; officeIds: Set<string> }>();
+
+    offices.forEach((office) => {
+      const key = office.name.trim().toLowerCase();
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          id: key,
+          name: office.name.trim(),
+          focalPersons: new Set(office.focalPerson ? [office.focalPerson] : []),
+          officeIds: new Set([office.id]),
+        });
+      } else {
+        const existing = grouped.get(key)!;
+        existing.officeIds.add(office.id);
+        if (office.focalPerson) existing.focalPersons.add(office.focalPerson);
+      }
+    });
+
+    return Array.from(grouped.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [offices]);
+
+  const [selectedOffice, setSelectedOffice] = useState(officeGroups[0]?.id || '');
 
   useEffect(() => {
-    if (!selectedOffice && offices.length > 0) {
-      setSelectedOffice(offices[0].id);
+    if (!selectedOffice && officeGroups.length > 0) {
+      setSelectedOffice(officeGroups[0].id);
     }
-  }, [selectedOffice, offices]);
+  }, [selectedOffice, officeGroups]);
   
-  const office = offices.find(o => o.id === selectedOffice);
-  const officeKPIs = kpis.filter(k => k.officeId === selectedOffice);
-  const compliance = getOfficeCompliance(selectedOffice);
+  const selectedOfficeGroup = officeGroups.find((group) => group.id === selectedOffice);
+  const selectedOfficeIds = selectedOfficeGroup ? [...selectedOfficeGroup.officeIds] : [];
+
+  const office = selectedOfficeGroup
+    ? {
+        id: selectedOfficeGroup.id,
+        name: selectedOfficeGroup.name,
+        focalPerson: [...selectedOfficeGroup.focalPersons].join(', ') || 'N/A',
+      }
+    : undefined;
+
+  const officeKPIs = kpis.filter((k) => selectedOfficeIds.includes(k.officeId));
+
+  const compliance = {
+    total: officeKPIs.length,
+    submitted: officeKPIs.filter((k) => k.submissionStatus === 'submitted').length,
+    compliance:
+      officeKPIs.length > 0
+        ? (officeKPIs.filter((k) => k.submissionStatus === 'submitted').length / officeKPIs.length) * 100
+        : 0,
+  };
   
   const completed = officeKPIs.filter(k => k.status === 'completed').length;
   const ongoing = officeKPIs.filter(k => k.status === 'ongoing').length;
@@ -40,9 +84,9 @@ export function OfficeDashboard() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {offices.map(office => (
-                <SelectItem key={office.id} value={office.id}>
-                  {office.name}
+              {officeGroups.map((officeGroup) => (
+                <SelectItem key={officeGroup.id} value={officeGroup.id}>
+                  {officeGroup.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -146,6 +190,7 @@ export function OfficeDashboard() {
                 <TableHead className="min-w-[320px]">KPI Name</TableHead>
                 <TableHead>Target</TableHead>
                 <TableHead>Accomplishment</TableHead>
+                <TableHead className="min-w-[240px]">Key Activities / Outputs</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Submission</TableHead>
               </TableRow>
@@ -170,6 +215,17 @@ export function OfficeDashboard() {
                       <div>
                         <div className="font-medium">{totalAcc} {kpi.unit}</div>
                         <div className="text-xs text-gray-500">{percentage.toFixed(1)}%</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="max-w-[300px] break-words text-sm" title={kpi.keyActivitiesOutputs || 'N/A'}>
+                        {kpi.keyActivitiesOutputs && isLikelyHttpUrl(kpi.keyActivitiesOutputs) ? (
+                          <a href={kpi.keyActivitiesOutputs} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">
+                            {kpi.keyActivitiesOutputs}
+                          </a>
+                        ) : (
+                          kpi.keyActivitiesOutputs || 'N/A'
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>

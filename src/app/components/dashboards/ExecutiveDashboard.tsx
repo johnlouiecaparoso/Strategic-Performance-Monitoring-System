@@ -325,6 +325,10 @@ export function ExecutiveDashboard() {
               <div className="text-2xl font-semibold">{quality.missingQ1Target}</div>
             </div>
             <div className="rounded-lg border p-3">
+              <div className="text-xs text-gray-500">Missing Any Quarter Target</div>
+              <div className="text-2xl font-semibold">{quality.missingAnyQuarterTarget}</div>
+            </div>
+            <div className="rounded-lg border p-3">
               <div className="text-xs text-gray-500">No Monthly Updates</div>
               <div className="text-2xl font-semibold">{quality.noMonthlyUpdates}</div>
             </div>

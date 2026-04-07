@@ -4,9 +4,14 @@ import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
 import { TrendingUp, TrendingDown, Minus, AlertCircle } from 'lucide-react';
 import { useAppData } from '../../data/store';
-import { getKPIQ1Progress } from '../../utils/analytics';
+import { getKPIQuarterProgress } from '../../utils/analytics';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { useMemo, useState } from 'react';
+import { EDITABLE_FIELD_RULES, READ_ONLY_FIELD_RULES } from '../../utils/bscGovernance';
+
+function isLikelyHttpUrl(value: string) {
+  return /^https?:\/\//i.test(value.trim());
+}
 
 export function KPITrackingDashboard() {
   const { kpis, monthlyAccomplishments, goals, offices } = useAppData();
@@ -16,10 +21,13 @@ export function KPITrackingDashboard() {
 
   const kpiData = kpis.map(kpi => {
     const accs = monthlyAccomplishments.filter(a => a.kpiId === kpi.id);
-    const progress = getKPIQ1Progress(kpi);
-    const totalAcc = progress.accomplishment;
-    const benchmarkTarget = progress.benchmarkTarget;
-    const percentage = progress.percentage;
+    const q1Progress = getKPIQuarterProgress(kpi, 'Q1');
+    const q2Progress = getKPIQuarterProgress(kpi, 'Q2');
+    const q3Progress = getKPIQuarterProgress(kpi, 'Q3');
+    const q4Progress = getKPIQuarterProgress(kpi, 'Q4');
+    const totalAcc = q1Progress.accomplishment;
+    const benchmarkTarget = q1Progress.benchmarkTarget;
+    const percentage = q1Progress.percentage;
     const variance = totalAcc - benchmarkTarget;
     const goal = goals.find(g => g.id === kpi.goalId);
     const office = offices.find(o => o.id === kpi.officeId);
@@ -41,6 +49,19 @@ export function KPITrackingDashboard() {
       bscRemarks: kpi.bscRemarks || '',
       sourceSheet: kpi.sourceSheet || '',
       sourceRow: kpi.sourceRow,
+      q2Target: kpi.q2Target || q2Progress.benchmarkTarget,
+      q3Target: kpi.q3Target || q3Progress.benchmarkTarget,
+      q4Target: kpi.q4Target || q4Progress.benchmarkTarget,
+      q2Accomplishment: q2Progress.accomplishment,
+      q3Accomplishment: q3Progress.accomplishment,
+      q4Accomplishment: q4Progress.accomplishment,
+      q2Percentage: Math.round(q2Progress.percentage * 10) / 10,
+      q3Percentage: Math.round(q3Progress.percentage * 10) / 10,
+      q4Percentage: Math.round(q4Progress.percentage * 10) / 10,
+      meansOfVerification: kpi.meansOfVerification || kpi.movText || '',
+      issuesChallenges: kpi.issuesChallenges || '',
+      assistanceNeededRecommendations: kpi.assistanceNeededRecommendations || '',
+      validationState: kpi.validationState || 'draft',
       performance:
         percentage >= 100
           ? 'overachieved'
@@ -139,6 +160,40 @@ export function KPITrackingDashboard() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>BSC Field Governance</CardTitle>
+          <CardDescription>Read-only source fields versus reporting fields allowed for updates</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-lg border p-3">
+              <p className="text-sm font-medium mb-2">Read-Only Fields</p>
+              <div className="space-y-1">
+                {READ_ONLY_FIELD_RULES.map((rule) => (
+                  <div key={rule.key} className="flex items-center justify-between text-sm">
+                    <span>{rule.label}</span>
+                    <Badge variant="outline">{rule.type}</Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-lg border p-3">
+              <p className="text-sm font-medium mb-2">Reporting / Editable Fields</p>
+              <div className="space-y-1">
+                {EDITABLE_FIELD_RULES.map((rule) => (
+                  <div key={rule.key} className="flex items-center justify-between text-sm">
+                    <span>{rule.label}</span>
+                    <Badge variant={rule.editable ? 'default' : 'secondary'}>{rule.type}</Badge>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </CardContent>
@@ -256,10 +311,14 @@ export function KPITrackingDashboard() {
                   <TableHead className="w-[220px] whitespace-nowrap">Strategic Objective</TableHead>
                   <TableHead className="w-[130px] whitespace-nowrap">Target</TableHead>
                   <TableHead className="w-[130px] whitespace-nowrap">Q1 Target</TableHead>
+                  <TableHead className="w-[130px] whitespace-nowrap">Q2 Target</TableHead>
+                  <TableHead className="w-[130px] whitespace-nowrap">Q3 Target</TableHead>
+                  <TableHead className="w-[130px] whitespace-nowrap">Q4 Target</TableHead>
                   <TableHead className="w-[160px] whitespace-nowrap">Accomplishment</TableHead>
                   <TableHead className="w-[130px] whitespace-nowrap">Variance</TableHead>
                   <TableHead className="w-[220px] whitespace-nowrap">Progress</TableHead>
                   <TableHead className="w-[220px] whitespace-nowrap">Key Activities/Outputs</TableHead>
+                  <TableHead className="w-[220px] whitespace-nowrap">Means of Verification</TableHead>
                   <TableHead className="w-[220px] whitespace-nowrap">BSC Remarks</TableHead>
                 </TableRow>
               </TableHeader>
@@ -287,6 +346,9 @@ export function KPITrackingDashboard() {
                     </TableCell>
                     <TableCell className="align-top">{kpi.target} {kpi.unit}</TableCell>
                     <TableCell className="align-top">{kpi.benchmarkTarget > 0 ? `${kpi.benchmarkTarget} ${kpi.unit}` : 'N/A'}</TableCell>
+                    <TableCell className="align-top">{kpi.q2Target > 0 ? `${kpi.q2Target} ${kpi.unit}` : 'N/A'}</TableCell>
+                    <TableCell className="align-top">{kpi.q3Target > 0 ? `${kpi.q3Target} ${kpi.unit}` : 'N/A'}</TableCell>
+                    <TableCell className="align-top">{kpi.q4Target > 0 ? `${kpi.q4Target} ${kpi.unit}` : 'N/A'}</TableCell>
                     <TableCell className="align-top">
                       <div
                         className={`font-medium ${
@@ -350,7 +412,20 @@ export function KPITrackingDashboard() {
                     </TableCell>
                     <TableCell className="text-sm align-top">
                       <div className="max-w-xs truncate" title={kpi.keyActivitiesOutputs || 'N/A'}>
-                        {kpi.keyActivitiesOutputs || 'N/A'}
+                        {kpi.keyActivitiesOutputs && isLikelyHttpUrl(kpi.keyActivitiesOutputs) ? (
+                          <a href={kpi.keyActivitiesOutputs} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">
+                            Open link
+                          </a>
+                        ) : kpi.keyActivitiesOutputs || 'N/A'}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm align-top">
+                      <div className="max-w-xs truncate" title={kpi.meansOfVerification || 'N/A'}>
+                        {kpi.meansOfVerification && isLikelyHttpUrl(kpi.meansOfVerification) ? (
+                          <a href={kpi.meansOfVerification} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">
+                            Open link
+                          </a>
+                        ) : kpi.meansOfVerification || 'N/A'}
                       </div>
                     </TableCell>
                     <TableCell className="text-sm align-top">
@@ -362,6 +437,57 @@ export function KPITrackingDashboard() {
                 ))}
               </TableBody>
             </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Validation / Detail Monitoring</CardTitle>
+          <CardDescription>Operational review of status, issues, assistance, and submission details</CardDescription>
+        </CardHeader>
+        <CardContent className="max-h-[24rem] overflow-auto">
+          <Table className="table-fixed min-w-[1700px]">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[180px]">KPI Code</TableHead>
+                <TableHead className="w-[360px]">KPI / Strategic Measure</TableHead>
+                <TableHead>Office</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Validation State</TableHead>
+                <TableHead className="w-[280px]">Issues / Challenges</TableHead>
+                <TableHead className="w-[280px]">Assistance Needed / Recommendations</TableHead>
+                <TableHead>Focal Person</TableHead>
+                <TableHead>Submission Date</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredKpiData.map((kpi) => (
+                <TableRow key={`validation-${kpi.id}`}>
+                  <TableCell className="text-xs font-semibold text-gray-600">{kpi.code}</TableCell>
+                  <TableCell className="font-medium">{kpi.name}</TableCell>
+                  <TableCell>{kpi.officeName}</TableCell>
+                  <TableCell>
+                    <Badge variant={kpi.status === 'delayed' ? 'destructive' : 'secondary'}>
+                      {kpi.status.replace('_', ' ')}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={kpi.validationState === 'approved' ? 'default' : 'outline'}>
+                      {kpi.validationState.replace('_', ' ')}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="max-w-[280px] break-words text-sm">{kpi.issuesChallenges || 'N/A'}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="max-w-[280px] break-words text-sm">{kpi.assistanceNeededRecommendations || 'N/A'}</div>
+                  </TableCell>
+                  <TableCell>{kpi.focalPerson || 'N/A'}</TableCell>
+                  <TableCell>{kpi.submissionDate ? new Date(kpi.submissionDate).toLocaleDateString() : 'N/A'}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 

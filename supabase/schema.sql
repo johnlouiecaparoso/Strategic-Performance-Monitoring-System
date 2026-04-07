@@ -109,9 +109,16 @@ create table if not exists kpis (
   perspective       text,
   strategic_objective text,
   q1_target         numeric,
+  q2_target         numeric,
+  q3_target         numeric,
+  q4_target         numeric,
   target_text       text,
   key_activities_outputs text,
+  means_of_verification text,
   mov_text          text,
+  issues_challenges text,
+  assistance_needed_recommendations text,
+  validation_state  text,
   bsc_remarks       text,
   source_sheet      text,
   source_row        int,
@@ -184,9 +191,16 @@ alter table kpis add column if not exists assignment_type text;
 alter table kpis add column if not exists perspective text;
 alter table kpis add column if not exists strategic_objective text;
 alter table kpis add column if not exists q1_target numeric;
+alter table kpis add column if not exists q2_target numeric;
+alter table kpis add column if not exists q3_target numeric;
+alter table kpis add column if not exists q4_target numeric;
 alter table kpis add column if not exists target_text text;
 alter table kpis add column if not exists key_activities_outputs text;
+alter table kpis add column if not exists means_of_verification text;
 alter table kpis add column if not exists mov_text text;
+alter table kpis add column if not exists issues_challenges text;
+alter table kpis add column if not exists assistance_needed_recommendations text;
+alter table kpis add column if not exists validation_state text;
 alter table kpis add column if not exists bsc_remarks text;
 alter table kpis add column if not exists source_sheet text;
 alter table kpis add column if not exists source_row int;

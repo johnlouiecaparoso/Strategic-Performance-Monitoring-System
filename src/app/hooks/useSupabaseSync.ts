@@ -30,9 +30,16 @@ interface RTKPIRow {
   perspective?: string | null;
   strategic_objective?: string | null;
   q1_target?: number | null;
+  q2_target?: number | null;
+  q3_target?: number | null;
+  q4_target?: number | null;
   target_text?: string | null;
   key_activities_outputs?: string | null;
+  means_of_verification?: string | null;
   mov_text?: string | null;
+  issues_challenges?: string | null;
+  assistance_needed_recommendations?: string | null;
+  validation_state?: string | null;
   bsc_remarks?: string | null;
   source_sheet?: string | null;
   source_row?: number | null;
@@ -70,9 +77,16 @@ function rtMapKPI(r: RTKPIRow): KPI {
     perspective: r.perspective ?? undefined,
     strategicObjective: r.strategic_objective ?? undefined,
     q1Target: r.q1_target ?? undefined,
+    q2Target: r.q2_target ?? undefined,
+    q3Target: r.q3_target ?? undefined,
+    q4Target: r.q4_target ?? undefined,
     targetText: r.target_text ?? undefined,
     keyActivitiesOutputs: r.key_activities_outputs ?? undefined,
+    meansOfVerification: r.means_of_verification ?? undefined,
     movText: r.mov_text ?? undefined,
+    issuesChallenges: r.issues_challenges ?? undefined,
+    assistanceNeededRecommendations: r.assistance_needed_recommendations ?? undefined,
+    validationState: (r.validation_state as KPI['validationState']) ?? undefined,
     bscRemarks: r.bsc_remarks ?? undefined,
     sourceSheet: r.source_sheet ?? undefined,
     sourceRow: r.source_row ?? undefined,

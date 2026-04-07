@@ -14,6 +14,7 @@ import {
   type ChartConfig,
 } from '../ui/chart';
 import { useAppData } from '../../data/store';
+import { ALL_MONTHS } from '../../utils/bscGovernance';
 
 const monthlyDistributionChartConfig = {
   total: {
@@ -25,6 +26,7 @@ const monthlyDistributionChartConfig = {
 export function MonthlyDashboard() {
   const { monthlyAccomplishments, kpis } = useAppData();
   const monthlyTrend = getMonthlyTrend();
+  const months = ALL_MONTHS;
   
   // Calculate best and worst months
   const sortedByTotal = [...monthlyTrend].sort((a, b) => b.total - a.total);
@@ -42,20 +44,20 @@ export function MonthlyDashboard() {
 
   // Accomplishments by month for all KPIs
   const kpiMonthlyData = kpis.map(kpi => {
-    const jan = monthlyAccomplishments.find(a => a.kpiId === kpi.id && a.month === 'January');
-    const feb = monthlyAccomplishments.find(a => a.kpiId === kpi.id && a.month === 'February');
-    const mar = monthlyAccomplishments.find(a => a.kpiId === kpi.id && a.month === 'March');
-    
+    const monthValues = months.map((month) => {
+      const row = monthlyAccomplishments.find((a) => a.kpiId === kpi.id && a.month === month);
+      return {
+        month,
+        accomplishment: row?.accomplishment || 0,
+        percentage: row?.percentage || 0,
+      };
+    });
+
     return {
       code: kpi.code,
       name: kpi.name,
-      january: jan?.accomplishment || 0,
-      february: feb?.accomplishment || 0,
-      march: mar?.accomplishment || 0,
-      total: (jan?.accomplishment || 0) + (feb?.accomplishment || 0) + (mar?.accomplishment || 0),
-      janPercent: jan?.percentage || 0,
-      febPercent: feb?.percentage || 0,
-      marPercent: mar?.percentage || 0
+      monthValues,
+      total: monthValues.reduce((sum, item) => sum + item.accomplishment, 0),
     };
   });
 
@@ -100,14 +102,14 @@ export function MonthlyDashboard() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Total Q1 Accomplishment</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600">Total YTD Accomplishment</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-semibold">
               {monthlyTrend.reduce((sum, m) => sum + m.total, 0)}
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              Avg {Math.round(monthlyTrend.reduce((sum, m) => sum + m.avgPercentage, 0) / monthlyTrend.length)}% per month
+              Avg {Math.round(monthlyTrend.reduce((sum, m) => sum + m.avgPercentage, 0) / (monthlyTrend.length || 1))}% per month
             </p>
           </CardContent>
         </Card>
@@ -206,23 +208,27 @@ export function MonthlyDashboard() {
           <CardDescription>Accomplishments per KPI by month</CardDescription>
         </CardHeader>
         <CardContent className="max-h-[30rem] overflow-auto">
-          <Table className="table-fixed min-w-[1200px]">
+          <Table className="table-fixed min-w-[2200px]">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[220px]">KPI Code</TableHead>
                 <TableHead className="w-[460px]">KPI Name</TableHead>
-                <TableHead>January</TableHead>
-                <TableHead>February</TableHead>
-                <TableHead>March</TableHead>
-                <TableHead>Q1 Total</TableHead>
+                {months.map((month) => (
+                  <TableHead key={`header-${month}`}>{month.slice(0, 3)}</TableHead>
+                ))}
+                <TableHead>YTD Total</TableHead>
                 <TableHead>Trend</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {kpiMonthlyData.map(kpi => {
-                const trend = kpi.march > kpi.february && kpi.february > kpi.january ? 'improving' :
-                              kpi.march < kpi.february && kpi.february < kpi.january ? 'declining' :
-                              'stable';
+                const tail = kpi.monthValues.slice(-3);
+                const [m1, m2, m3] = tail;
+                const trend = m3 && m2 && m1 && m3.accomplishment > m2.accomplishment && m2.accomplishment > m1.accomplishment
+                  ? 'improving'
+                  : m3 && m2 && m1 && m3.accomplishment < m2.accomplishment && m2.accomplishment < m1.accomplishment
+                  ? 'declining'
+                  : 'stable';
                 
                 return (
                   <TableRow key={kpi.code}>
@@ -232,24 +238,14 @@ export function MonthlyDashboard() {
                     <TableCell>
                       <div className="w-[460px] max-w-[460px] break-words text-base font-semibold leading-tight">{kpi.name}</div>
                     </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{kpi.january}</div>
-                        <div className="text-xs text-gray-500">{kpi.janPercent}%</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{kpi.february}</div>
-                        <div className="text-xs text-gray-500">{kpi.febPercent}%</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{kpi.march}</div>
-                        <div className="text-xs text-gray-500">{kpi.marPercent}%</div>
-                      </div>
-                    </TableCell>
+                    {kpi.monthValues.map((item) => (
+                      <TableCell key={`${kpi.code}-${item.month}`}>
+                        <div>
+                          <div className="font-medium">{item.accomplishment}</div>
+                          <div className="text-xs text-gray-500">{item.percentage}%</div>
+                        </div>
+                      </TableCell>
+                    ))}
                     <TableCell className="font-semibold">{kpi.total}</TableCell>
                     <TableCell>
                       <Badge variant={

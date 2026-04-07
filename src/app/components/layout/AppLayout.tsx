@@ -9,6 +9,7 @@ import {
   CheckSquare, 
   FileCheck, 
   Calendar,
+  Layers,
   LogOut
 } from 'lucide-react';
 import { Button } from '../ui/button';
@@ -26,6 +27,7 @@ const navigation = [
   { name: 'Submission Compliance', href: '/compliance', icon: CheckSquare },
   { name: 'MOV Dashboard', href: '/mov', icon: FileCheck },
   { name: 'Monthly Progress', href: '/monthly', icon: Calendar },
+  { name: 'Pillar Performance', href: '/pillars', icon: Layers },
 ];
 
 export function AppLayout() {
@@ -168,11 +170,11 @@ export function AppLayout() {
               (e.currentTarget as HTMLImageElement).style.display = 'none';
             }}
           />
-          <span className="hidden sm:block max-w-[34rem] truncate text-sm font-semibold text-white">
-            Strategic Performance Monitoring System (SPMS)
+          <span className="hidden sm:block max-w-[40rem] truncate text-base md:text-lg font-bold text-white tracking-wide">
+            Balance Scorecard
           </span>
 
-          <span className="sm:hidden text-sm font-semibold text-white">SPMS</span>
+          <span className="sm:hidden text-base font-bold text-white tracking-wide">BSC</span>
         </button>
 
         <div className="flex-1" />

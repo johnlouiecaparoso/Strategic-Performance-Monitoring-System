@@ -1,22 +1,40 @@
 // Analytics and calculation utilities
 
-import { KPI, MonthlyAccomplishment, Issue, MOV } from '../types';
+import { KPI, MonthlyAccomplishment, Issue, MOV, QuarterName } from '../types';
 import { getDataSnapshot } from '../data/store';
+import { ALL_MONTHS, QUARTER_MONTHS } from './bscGovernance';
 
 export function getKPIBenchmarkTarget(kpi: KPI): number {
   return kpi.q1Target && kpi.q1Target > 0 ? kpi.q1Target : kpi.target;
 }
 
+export function getKPIQuarterTarget(kpi: KPI, quarter: QuarterName): number {
+  if (quarter === 'Q1') return kpi.q1Target && kpi.q1Target > 0 ? kpi.q1Target : kpi.target;
+  if (quarter === 'Q2') return kpi.q2Target && kpi.q2Target > 0 ? kpi.q2Target : 0;
+  if (quarter === 'Q3') return kpi.q3Target && kpi.q3Target > 0 ? kpi.q3Target : 0;
+  if (quarter === 'Q4') return kpi.q4Target && kpi.q4Target > 0 ? kpi.q4Target : 0;
+  return 0;
+}
+
 export function getKPIQ1Accomplishment(kpiId: string): number {
+  return getKPIQuarterAccomplishment(kpiId, 'Q1');
+}
+
+export function getKPIQuarterAccomplishment(kpiId: string, quarter: QuarterName): number {
   const { monthlyAccomplishments } = getDataSnapshot();
+  const quarterMonths = QUARTER_MONTHS[quarter];
   return monthlyAccomplishments
-    .filter((acc) => acc.kpiId === kpiId && ['January', 'February', 'March'].includes(acc.month))
+    .filter((acc) => acc.kpiId === kpiId && quarterMonths.includes(acc.month))
     .reduce((sum, acc) => sum + acc.accomplishment, 0);
 }
 
 export function getKPIQ1Progress(kpi: KPI) {
-  const accomplishment = getKPIQ1Accomplishment(kpi.id);
-  const benchmarkTarget = getKPIBenchmarkTarget(kpi);
+  return getKPIQuarterProgress(kpi, 'Q1');
+}
+
+export function getKPIQuarterProgress(kpi: KPI, quarter: QuarterName) {
+  const accomplishment = getKPIQuarterAccomplishment(kpi.id, quarter);
+  const benchmarkTarget = getKPIQuarterTarget(kpi, quarter);
   const percentage = benchmarkTarget > 0 ? (accomplishment / benchmarkTarget) * 100 : 0;
 
   return {
@@ -85,8 +103,7 @@ export function getOfficesWithMissingSubmissions() {
 
 export function getMonthlyTrend() {
   const { monthlyAccomplishments } = getDataSnapshot();
-  const months = ['January', 'February', 'March'];
-  return months.map(month => {
+  return ALL_MONTHS.map(month => {
     const monthAccomplishments = monthlyAccomplishments.filter(a => a.month === month);
     const total = monthAccomplishments.reduce((sum, a) => sum + a.accomplishment, 0);
     const avgPercentage = monthAccomplishments.length > 0
@@ -152,9 +169,16 @@ export function getDataQualitySummary() {
   const { kpis, monthlyAccomplishments } = getDataSnapshot();
 
   const missingQ1Target = kpis.filter((kpi) => !kpi.q1Target || kpi.q1Target <= 0).length;
+  const missingAnyQuarterTarget = kpis.filter(
+    (kpi) =>
+      (!kpi.q1Target || kpi.q1Target <= 0) ||
+      (!kpi.q2Target || kpi.q2Target <= 0) ||
+      (!kpi.q3Target || kpi.q3Target <= 0) ||
+      (!kpi.q4Target || kpi.q4Target <= 0),
+  ).length;
   const missingFocalPerson = kpis.filter((kpi) => !kpi.focalPerson?.trim()).length;
   const missingSubmissionDate = kpis.filter((kpi) => !kpi.submissionDate).length;
-  const missingMOVText = kpis.filter((kpi) => !kpi.movText?.trim()).length;
+  const missingMOVText = kpis.filter((kpi) => !kpi.movText?.trim() && !kpi.meansOfVerification?.trim()).length;
 
   const noMonthlyUpdates = kpis.filter((kpi) => {
     const rows = monthlyAccomplishments.filter((acc) => acc.kpiId === kpi.id);
@@ -164,6 +188,7 @@ export function getDataQualitySummary() {
   return {
     total: kpis.length,
     missingQ1Target,
+    missingAnyQuarterTarget,
     missingFocalPerson,
     missingSubmissionDate,
     missingMOVText,
@@ -189,7 +214,7 @@ export function getPriorityKPIs(limit: number = 8) {
       if (q1Target > 0 && q1Percent < 50) score += 30;
       if (q1Target > 0 && q1Percent < 80) score += 10;
       score += openIssues * 10;
-      if (!kpi.movText) score += 5;
+      if (!kpi.movText && !kpi.meansOfVerification) score += 5;
 
       return {
         id: kpi.id,
@@ -205,6 +230,38 @@ export function getPriorityKPIs(limit: number = 8) {
       };
     })
     .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+}
+
+export function getPillarPerformance(limit = 10) {
+  const { kpis } = getDataSnapshot();
+  const grouped = new Map<string, { target: number; accomplishment: number; kpiCount: number; delayed: number }>();
+
+  kpis.forEach((kpi) => {
+    const pillar = kpi.pillar?.trim() || 'Unspecified';
+    const q1 = getKPIQuarterProgress(kpi, 'Q1');
+
+    if (!grouped.has(pillar)) {
+      grouped.set(pillar, { target: 0, accomplishment: 0, kpiCount: 0, delayed: 0 });
+    }
+
+    const row = grouped.get(pillar)!;
+    row.target += q1.benchmarkTarget;
+    row.accomplishment += q1.accomplishment;
+    row.kpiCount += 1;
+    if (kpi.status === 'delayed') row.delayed += 1;
+  });
+
+  return Array.from(grouped.entries())
+    .map(([pillar, row]) => ({
+      pillar,
+      target: row.target,
+      accomplishment: row.accomplishment,
+      kpiCount: row.kpiCount,
+      delayed: row.delayed,
+      percent: row.target > 0 ? (row.accomplishment / row.target) * 100 : 0,
+    }))
+    .sort((a, b) => b.percent - a.percent)
     .slice(0, limit);
 }
 

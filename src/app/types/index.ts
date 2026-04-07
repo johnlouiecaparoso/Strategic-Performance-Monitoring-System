@@ -4,7 +4,27 @@ export type UserRole = 'admin' | 'encoder' | 'validator' | 'executive';
 
 export type KPIStatus = 'completed' | 'ongoing' | 'delayed' | 'not_started' | 'for_validation';
 
+export type AssignmentType = 'Strategic' | 'Core' | 'Support';
+
+export type ValidationState = 'draft' | 'submitted' | 'under_validation' | 'approved' | 'returned';
+
 export type SubmissionStatus = 'submitted' | 'not_submitted' | 'late';
+
+export type MonthName =
+  | 'January'
+  | 'February'
+  | 'March'
+  | 'April'
+  | 'May'
+  | 'June'
+  | 'July'
+  | 'August'
+  | 'September'
+  | 'October'
+  | 'November'
+  | 'December';
+
+export type QuarterName = 'Q1' | 'Q2' | 'Q3' | 'Q4';
 
 export interface User {
   id: string;
@@ -42,13 +62,20 @@ export interface KPI {
   submissionDate?: string;
   focalPerson: string;
   pillar?: string;
-  assignmentType?: string;
+  assignmentType?: AssignmentType;
   perspective?: string;
   strategicObjective?: string;
   q1Target?: number;
+  q2Target?: number;
+  q3Target?: number;
+  q4Target?: number;
   targetText?: string;
   keyActivitiesOutputs?: string;
+  meansOfVerification?: string;
   movText?: string;
+  issuesChallenges?: string;
+  assistanceNeededRecommendations?: string;
+  validationState?: ValidationState;
   bscRemarks?: string;
   sourceSheet?: string;
   sourceRow?: number;
@@ -57,7 +84,7 @@ export interface KPI {
 export interface MonthlyAccomplishment {
   id: string;
   kpiId: string;
-  month: 'January' | 'February' | 'March' | 'April' | 'May' | 'June' | 'July' | 'August' | 'September' | 'October' | 'November' | 'December';
+  month: MonthName;
   accomplishment: number;
   percentage: number;
   remarks?: string;
