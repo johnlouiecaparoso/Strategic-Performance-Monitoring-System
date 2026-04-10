@@ -136,7 +136,7 @@ export function ExecutiveDashboard() {
             <CardDescription>Current status of all KPIs</CardDescription>
           </CardHeader>
           <CardContent>
-            <StatusDonutChart data={statusData} />
+            <StatusDonutChart data={statusData} exportTitle="Status Distribution" />
           </CardContent>
         </Card>
 
@@ -146,7 +146,7 @@ export function ExecutiveDashboard() {
             <CardDescription>Submission compliance overview</CardDescription>
           </CardHeader>
           <CardContent>
-            <StatusDonutChart data={submissionData} />
+            <StatusDonutChart data={submissionData} exportTitle="Submission Status" />
           </CardContent>
         </Card>
       </div>
@@ -158,7 +158,7 @@ export function ExecutiveDashboard() {
           <CardDescription>Progress over the past three months</CardDescription>
         </CardHeader>
         <CardContent>
-          <MonthlyTrendChart data={monthlyTrend} />
+          <MonthlyTrendChart data={monthlyTrend} exportTitle="Monthly Accomplishment Trend" />
         </CardContent>
       </Card>
 
@@ -231,7 +231,7 @@ export function ExecutiveDashboard() {
             <CardDescription>How KPIs are spread by pillar</CardDescription>
           </CardHeader>
           <CardContent>
-            <StatusDonutChart data={pillarDonut} />
+            <StatusDonutChart data={pillarDonut} exportTitle="Pillar Distribution" />
           </CardContent>
         </Card>
 
@@ -241,7 +241,7 @@ export function ExecutiveDashboard() {
             <CardDescription>Strategic/Core/Support and other assignments</CardDescription>
           </CardHeader>
           <CardContent>
-            <StatusDonutChart data={assignmentDonut} />
+            <StatusDonutChart data={assignmentDonut} exportTitle="Assignment Type" />
           </CardContent>
         </Card>
 
@@ -251,7 +251,7 @@ export function ExecutiveDashboard() {
             <CardDescription>Coverage by perspective</CardDescription>
           </CardHeader>
           <CardContent>
-            <StatusDonutChart data={perspectiveDonut} />
+            <StatusDonutChart data={perspectiveDonut} exportTitle="Perspective Mix" />
           </CardContent>
         </Card>
       </div>
@@ -386,7 +386,7 @@ export function ExecutiveDashboard() {
             <CardDescription>Distribution by source sheet values</CardDescription>
           </CardHeader>
           <CardContent>
-            <StatusDonutChart data={sourceDonut} />
+            <StatusDonutChart data={sourceDonut} exportTitle="Source Trace Summary" />
           </CardContent>
         </Card>
       </div>

@@ -10,9 +10,10 @@ import { useIsMobile } from '../ui/use-mobile';
 
 interface StatusDonutChartProps {
   data: Array<{ name: string; value: number; color: string }>;
+  exportTitle?: string;
 }
 
-export function StatusDonutChart({ data }: StatusDonutChartProps) {
+export function StatusDonutChart({ data, exportTitle = 'Status Breakdown' }: StatusDonutChartProps) {
   const isMobile = useIsMobile();
   const total = data.reduce((sum, item) => sum + item.value, 0);
 
@@ -21,6 +22,8 @@ export function StatusDonutChart({ data }: StatusDonutChartProps) {
       config={Object.fromEntries(
         data.map((item) => [item.name, { label: item.name, color: item.color }]),
       )}
+      exportTitle={exportTitle}
+      exportData={data}
       className={isMobile ? 'h-[240px] w-full !aspect-auto' : 'h-[300px] w-full !aspect-auto'}
     >
       <PieChart>

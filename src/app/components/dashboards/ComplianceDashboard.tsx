@@ -4,8 +4,16 @@ import { Badge } from '../ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Progress } from '../ui/progress';
 import { CheckCircle, XCircle, Clock, Calendar } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { useAppData } from '../../data/store';
+import {
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from '../ui/chart';
 
 export function ComplianceDashboard() {
   const { kpis, offices } = useAppData();
@@ -30,6 +38,9 @@ export function ComplianceDashboard() {
   const lateSubmissions = kpis.filter(k => k.submissionStatus === 'late');
   const formatOfficeLabel = (label: string) =>
     label.length > 18 ? `${label.slice(0, 18)}…` : label;
+  const officeComplianceChartConfig = {
+    compliance: { label: 'Compliance %', color: '#3b82f6' },
+  } satisfies ChartConfig;
 
   return (
     <div className="space-y-6">
@@ -88,7 +99,12 @@ export function ComplianceDashboard() {
           <CardDescription>Submission compliance rate per office</CardDescription>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={350}>
+          <ChartContainer
+            config={officeComplianceChartConfig}
+            exportTitle="Compliance by Office"
+            exportData={officeComplianceData}
+            className="h-[350px] w-full"
+          >
             <BarChart data={officeComplianceData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
@@ -100,11 +116,11 @@ export function ComplianceDashboard() {
                 tickFormatter={formatOfficeLabel}
               />
               <YAxis domain={[0, 100]} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="compliance" fill="#3b82f6" name="Compliance %" />
+              <ChartTooltip content={<ChartTooltipContent formatter={(value) => `${Number(value).toFixed(1)}%`} />} />
+              <ChartLegend content={<ChartLegendContent />} />
+              <Bar dataKey="compliance" fill="var(--color-compliance)" name="Compliance %" />
             </BarChart>
-          </ResponsiveContainer>
+          </ChartContainer>
         </CardContent>
       </Card>
 

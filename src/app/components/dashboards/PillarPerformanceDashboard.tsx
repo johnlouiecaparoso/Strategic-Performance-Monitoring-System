@@ -1,9 +1,15 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { Progress } from '../ui/progress';
-import { Badge } from '../ui/badge';
-import { getPillarPerformance } from '../../utils/analytics';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+  import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
+  import { Progress } from '../ui/progress';
+  import { Badge } from '../ui/badge';
+  import { getPillarPerformance } from '../../utils/analytics';
+  import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+  import {
+    ChartContainer,
+    ChartTooltip,
+    ChartTooltipContent,
+    type ChartConfig,
+  } from '../ui/chart';
 
 export function PillarPerformanceDashboard() {
   const rows = getPillarPerformance(12);
@@ -14,6 +20,17 @@ export function PillarPerformanceDashboard() {
     accomplishment: row.accomplishment,
     percent: Number(row.percent.toFixed(1)),
   }));
+
+  const chartConfig = {
+    target: {
+      label: 'Target',
+      color: 'var(--color-chart-1)',
+    },
+    accomplishment: {
+      label: 'Accomplishment',
+      color: 'var(--color-chart-2)',
+    },
+  } satisfies ChartConfig;
 
   return (
     <div className="space-y-6">
@@ -59,16 +76,21 @@ export function PillarPerformanceDashboard() {
           <CardDescription>Comparative view of aggregate target and aggregate accomplishment</CardDescription>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={320}>
+          <ChartContainer
+            config={chartConfig}
+            exportTitle="Pillar Target vs Accomplishment"
+            exportData={chartData}
+            className="h-[320px] w-full"
+          >
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="pillar" angle={-25} textAnchor="end" height={90} interval={0} />
               <YAxis />
-              <Tooltip />
-              <Bar dataKey="target" name="Target" fill="#2563eb" />
-              <Bar dataKey="accomplishment" name="Accomplishment" fill="#16a34a" />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey="target" name="Target" fill="var(--color-target)" />
+              <Bar dataKey="accomplishment" name="Accomplishment" fill="var(--color-accomplishment)" />
             </BarChart>
-          </ResponsiveContainer>
+          </ChartContainer>
         </CardContent>
       </Card>
 

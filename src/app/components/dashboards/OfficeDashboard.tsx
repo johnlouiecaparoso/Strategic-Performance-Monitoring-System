@@ -7,10 +7,7 @@ import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
 import { Building2, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { useAppData } from '../../data/store';
-
-function isLikelyHttpUrl(value: string) {
-  return /^https?:\/\//i.test(value.trim());
-}
+import { LinkifiedText } from '../ui/linkified-text';
 
 export function OfficeDashboard() {
   const { offices, kpis, monthlyAccomplishments } = useAppData();
@@ -219,13 +216,7 @@ export function OfficeDashboard() {
                     </TableCell>
                     <TableCell>
                       <div className="max-w-[300px] break-words text-sm" title={kpi.keyActivitiesOutputs || 'N/A'}>
-                        {kpi.keyActivitiesOutputs && isLikelyHttpUrl(kpi.keyActivitiesOutputs) ? (
-                          <a href={kpi.keyActivitiesOutputs} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">
-                            {kpi.keyActivitiesOutputs}
-                          </a>
-                        ) : (
-                          kpi.keyActivitiesOutputs || 'N/A'
-                        )}
+                        <LinkifiedText text={kpi.keyActivitiesOutputs} />
                       </div>
                     </TableCell>
                     <TableCell>

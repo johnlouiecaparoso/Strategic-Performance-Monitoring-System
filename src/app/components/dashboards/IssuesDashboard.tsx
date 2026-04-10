@@ -2,8 +2,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { Badge } from '../ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { AlertCircle, AlertTriangle, Info, CheckCircle } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { useAppData } from '../../data/store';
+import {
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from '../ui/chart';
 
 export function IssuesDashboard() {
   const { issues, kpis, offices } = useAppData();
@@ -36,6 +44,13 @@ export function IssuesDashboard() {
     { name: 'Medium', value: issues.filter(i => i.severity === 'medium').length, color: '#f59e0b' },
     { name: 'Low', value: issues.filter(i => i.severity === 'low').length, color: '#10b981' },
   ];
+  const issuesByOfficeChartConfig = {
+    open: { label: 'Open', color: '#ef4444' },
+    resolved: { label: 'Resolved', color: '#10b981' },
+  } satisfies ChartConfig;
+  const severityChartConfig = Object.fromEntries(
+    severityData.map((entry) => [entry.name, { label: entry.name, color: entry.color }]),
+  ) as ChartConfig;
   const formatOfficeLabel = (label: string) =>
     label.length > 18 ? `${label.slice(0, 18)}…` : label;
 
@@ -144,7 +159,12 @@ export function IssuesDashboard() {
             <CardDescription>Distribution of issues across offices</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ChartContainer
+              config={issuesByOfficeChartConfig}
+              exportTitle="Issues by Office"
+              exportData={issuesByOffice}
+              className="h-[300px] w-full"
+            >
               <BarChart data={issuesByOffice}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
@@ -156,12 +176,12 @@ export function IssuesDashboard() {
                   tickFormatter={formatOfficeLabel}
                 />
                 <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="open" fill="#ef4444" name="Open" />
-                <Bar dataKey="resolved" fill="#10b981" name="Resolved" />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartLegend content={<ChartLegendContent />} />
+                <Bar dataKey="open" fill="var(--color-open)" name="Open" />
+                <Bar dataKey="resolved" fill="var(--color-resolved)" name="Resolved" />
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </CardContent>
         </Card>
 
@@ -171,7 +191,12 @@ export function IssuesDashboard() {
             <CardDescription>Issues by severity level</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ChartContainer
+              config={severityChartConfig}
+              exportTitle="Severity Distribution"
+              exportData={severityData}
+              className="h-[300px] w-full !aspect-auto"
+            >
               <PieChart>
                 <Pie
                   data={severityData}
@@ -186,10 +211,10 @@ export function IssuesDashboard() {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip />
-                <Legend />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </CardContent>
         </Card>
       </div>

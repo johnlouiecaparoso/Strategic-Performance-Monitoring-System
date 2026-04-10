@@ -4,8 +4,21 @@ import { Badge } from '../ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Progress } from '../ui/progress';
 import { FileCheck, FileX, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell } from 'recharts';
 import { useAppData } from '../../data/store';
+import {
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from '../ui/chart';
+import { LinkifiedText } from '../ui/linkified-text';
+
+function isLikelyHttpUrl(value: string) {
+  return /^https?:\/\//i.test(value.trim());
+}
 
 export function MOVDashboard() {
   const { movs, kpis, offices } = useAppData();
@@ -29,6 +42,12 @@ export function MOVDashboard() {
     { name: 'Validated', value: validatedMOVs.length, color: '#10b981' },
     { name: 'Pending', value: pendingValidation.length, color: '#f59e0b' },
   ];
+  const movChartConfig = {
+    'With MOV': { label: 'With MOV', color: '#10b981' },
+    'Without MOV': { label: 'Without MOV', color: '#ef4444' },
+    Validated: { label: 'Validated', color: '#10b981' },
+    Pending: { label: 'Pending', color: '#f59e0b' },
+  } satisfies ChartConfig;
 
   return (
     <div className="space-y-6">
@@ -105,7 +124,12 @@ export function MOVDashboard() {
             <CardDescription>KPIs with and without MOV</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ChartContainer
+              config={movChartConfig}
+              exportTitle="MOV Completeness"
+              exportData={movData}
+              className="h-[300px] w-full !aspect-auto"
+            >
               <PieChart>
                 <Pie
                   data={movData}
@@ -120,10 +144,10 @@ export function MOVDashboard() {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip />
-                <Legend />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </CardContent>
         </Card>
 
@@ -133,7 +157,12 @@ export function MOVDashboard() {
             <CardDescription>MOV validation breakdown</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ChartContainer
+              config={movChartConfig}
+              exportTitle="Validation Status"
+              exportData={validationData}
+              className="h-[300px] w-full !aspect-auto"
+            >
               <PieChart>
                 <Pie
                   data={validationData}
@@ -148,10 +177,10 @@ export function MOVDashboard() {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip />
-                <Legend />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </CardContent>
         </Card>
       </div>
@@ -232,7 +261,13 @@ export function MOVDashboard() {
                       <TableCell className="max-w-xs">
                         <div className="flex items-start gap-2">
                         <FileCheck className="size-4 text-gray-400" />
-                          <span className="break-words">{mov.fileName}</span>
+                          {isLikelyHttpUrl(mov.fileUrl) ? (
+                            <a href={mov.fileUrl} target="_blank" rel="noreferrer" className="break-words text-blue-700 hover:underline">
+                              {mov.fileName}
+                            </a>
+                          ) : (
+                            <LinkifiedText text={mov.fileName} className="break-words" emptyText="-" />
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>{mov.uploadedBy}</TableCell>
@@ -286,7 +321,13 @@ export function MOVDashboard() {
                     <TableCell className="max-w-xs">
                       <div className="flex items-start gap-2">
                         <FileCheck className="size-4 text-gray-400" />
-                        <span className="text-sm break-words">{mov.fileName}</span>
+                        {isLikelyHttpUrl(mov.fileUrl) ? (
+                          <a href={mov.fileUrl} target="_blank" rel="noreferrer" className="text-sm break-words text-blue-700 hover:underline">
+                            {mov.fileName}
+                          </a>
+                        ) : (
+                          <LinkifiedText text={mov.fileName} className="text-sm break-words" emptyText="-" />
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="text-sm">{office?.name}</TableCell>
@@ -344,7 +385,7 @@ export function MOVDashboard() {
                     <TableCell className="font-medium">{kpi.code}</TableCell>
                     <TableCell>{office?.name}</TableCell>
                     <TableCell className="max-w-xl">
-                      <span className="text-sm break-words">{kpi.movText}</span>
+                      <LinkifiedText text={kpi.movText} className="text-sm break-words" />
                     </TableCell>
                   </TableRow>
                 );

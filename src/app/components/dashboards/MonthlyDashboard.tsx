@@ -171,7 +171,12 @@ export function MonthlyDashboard() {
           <CardDescription>Stacked view of monthly accomplishments by KPI</CardDescription>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={monthlyDistributionChartConfig} className="h-[400px] w-full">
+          <ChartContainer
+            config={monthlyDistributionChartConfig}
+            exportTitle="Accomplishments Distribution"
+            exportData={monthlyTrend}
+            className="h-[400px] w-full"
+          >
             <AreaChart data={monthlyTrend} margin={{ top: 12, right: 8, left: 8, bottom: 4 }}>
               <defs>
                 <linearGradient id="fillTotal" x1="0" y1="0" x2="0" y2="1">

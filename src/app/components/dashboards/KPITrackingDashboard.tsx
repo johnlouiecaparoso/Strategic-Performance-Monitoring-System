@@ -8,10 +8,7 @@ import { getKPIQuarterProgress } from '../../utils/analytics';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { useMemo, useState } from 'react';
 import { EDITABLE_FIELD_RULES, READ_ONLY_FIELD_RULES } from '../../utils/bscGovernance';
-
-function isLikelyHttpUrl(value: string) {
-  return /^https?:\/\//i.test(value.trim());
-}
+import { LinkifiedText } from '../ui/linkified-text';
 
 export function KPITrackingDashboard() {
   const { kpis, monthlyAccomplishments, goals, offices } = useAppData();
@@ -412,20 +409,12 @@ export function KPITrackingDashboard() {
                     </TableCell>
                     <TableCell className="text-sm align-top">
                       <div className="max-w-xs truncate" title={kpi.keyActivitiesOutputs || 'N/A'}>
-                        {kpi.keyActivitiesOutputs && isLikelyHttpUrl(kpi.keyActivitiesOutputs) ? (
-                          <a href={kpi.keyActivitiesOutputs} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">
-                            Open link
-                          </a>
-                        ) : kpi.keyActivitiesOutputs || 'N/A'}
+                        <LinkifiedText text={kpi.keyActivitiesOutputs} />
                       </div>
                     </TableCell>
                     <TableCell className="text-sm align-top">
                       <div className="max-w-xs truncate" title={kpi.meansOfVerification || 'N/A'}>
-                        {kpi.meansOfVerification && isLikelyHttpUrl(kpi.meansOfVerification) ? (
-                          <a href={kpi.meansOfVerification} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">
-                            Open link
-                          </a>
-                        ) : kpi.meansOfVerification || 'N/A'}
+                        <LinkifiedText text={kpi.meansOfVerification} />
                       </div>
                     </TableCell>
                     <TableCell className="text-sm align-top">

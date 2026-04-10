@@ -4,6 +4,7 @@ import * as React from "react";
 import * as RechartsPrimitive from "recharts";
 
 import { cn } from "./utils";
+import { ChartExportMenu } from "./chart-export";
 
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const;
@@ -39,27 +40,46 @@ function ChartContainer({
   className,
   children,
   config,
+  exportTitle,
+  exportData,
   ...props
 }: React.ComponentProps<"div"> & {
   config: ChartConfig;
+  exportTitle?: string;
+  exportData?: Array<Record<string, unknown>>;
   children: React.ComponentProps<
     typeof RechartsPrimitive.ResponsiveContainer
   >["children"];
 }) {
   const uniqueId = React.useId();
   const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const [insideCard, setInsideCard] = React.useState(false);
+
+  React.useEffect(() => {
+    setInsideCard(Boolean(containerRef.current?.closest('[data-slot="card"]')));
+  }, []);
 
   return (
     <ChartContext.Provider value={{ config }}>
       <div
+        ref={containerRef}
         data-slot="chart"
         data-chart={chartId}
         className={cn(
           "[&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border flex aspect-video justify-center text-xs [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-hidden [&_.recharts-sector]:outline-hidden [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-surface]:outline-hidden",
+          !insideCard && "relative",
           className,
         )}
         {...props}
       >
+        <div className={cn("absolute z-10", insideCard ? "right-6 top-6" : "right-2 top-2") }>
+          <ChartExportMenu
+            containerRef={containerRef}
+            exportTitle={exportTitle}
+            exportData={exportData}
+          />
+        </div>
         <ChartStyle id={chartId} config={config} />
         <RechartsPrimitive.ResponsiveContainer>
           {children}
@@ -200,24 +220,49 @@ function ChartTooltipContent({
                     <itemConfig.icon />
                   ) : (
                     !hideIndicator && (
-                      <div
+                      <svg
+                        viewBox="0 0 10 10"
                         className={cn(
-                          "shrink-0 rounded-[2px] border-(--color-border) bg-(--color-bg)",
-                          {
-                            "h-2.5 w-2.5": indicator === "dot",
-                            "w-1": indicator === "line",
-                            "w-0 border-[1.5px] border-dashed bg-transparent":
-                              indicator === "dashed",
-                            "my-0.5": nestLabel && indicator === "dashed",
-                          },
+                          "shrink-0 overflow-visible",
+                          indicator === "dot" && "h-2.5 w-2.5",
+                          indicator === "line" && "h-2.5 w-1",
+                          indicator === "dashed" && "h-2.5 w-2.5",
+                          nestLabel && indicator === "dashed" && "my-0.5",
                         )}
-                        style={
-                          {
-                            "--color-bg": indicatorColor,
-                            "--color-border": indicatorColor,
-                          } as React.CSSProperties
-                        }
-                      />
+                        aria-hidden="true"
+                      >
+                        {indicator === "dashed" ? (
+                          <rect
+                            x="1"
+                            y="1"
+                            width="8"
+                            height="8"
+                            rx="1.5"
+                            fill="none"
+                            stroke={indicatorColor || "currentColor"}
+                            strokeDasharray="2 2"
+                            strokeWidth="1.5"
+                          />
+                        ) : indicator === "line" ? (
+                          <rect
+                            x="4"
+                            y="0"
+                            width="2"
+                            height="10"
+                            rx="1"
+                            fill={indicatorColor || "currentColor"}
+                          />
+                        ) : (
+                          <rect
+                            x="0"
+                            y="0"
+                            width="10"
+                            height="10"
+                            rx="2"
+                            fill={indicatorColor || "currentColor"}
+                          />
+                        )}
+                      </svg>
                     )
                   )}
                   <div
@@ -289,12 +334,9 @@ function ChartLegendContent({
             {itemConfig?.icon && !hideIcon ? (
               <itemConfig.icon />
             ) : (
-              <div
-                className="h-2 w-2 shrink-0 rounded-[2px]"
-                style={{
-                  backgroundColor: item.color,
-                }}
-              />
+              <svg className="h-2 w-2 shrink-0" viewBox="0 0 8 8" aria-hidden="true">
+                <rect x="0" y="0" width="8" height="8" rx="2" fill={item.color || "currentColor"} />
+              </svg>
             )}
             <span className="min-w-0 whitespace-normal break-words leading-tight">
               {itemConfig?.label}

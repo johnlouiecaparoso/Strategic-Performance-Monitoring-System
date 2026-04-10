@@ -11,6 +11,7 @@ import { useIsMobile } from '../ui/use-mobile';
 
 interface MonthlyTrendChartProps {
   data: Array<{ month: string; total: number; avgPercentage: number }>;
+  exportTitle?: string;
 }
 
 const chartConfig = {
@@ -24,11 +25,16 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
+export function MonthlyTrendChart({ data, exportTitle = 'Monthly Trend' }: MonthlyTrendChartProps) {
   const isMobile = useIsMobile();
 
   return (
-    <ChartContainer config={chartConfig} className={isMobile ? 'h-[260px] w-full' : 'h-[300px] w-full'}>
+    <ChartContainer
+      config={chartConfig}
+      exportTitle={exportTitle}
+      exportData={data}
+      className={isMobile ? 'h-[260px] w-full' : 'h-[300px] w-full'}
+    >
       <LineChart data={data} margin={{ top: 12, right: 8, left: 8, bottom: 4 }}>
         <CartesianGrid vertical={false} strokeDasharray="3 3" />
         <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} tick={{ fontSize: isMobile ? 10 : 12 }} />
