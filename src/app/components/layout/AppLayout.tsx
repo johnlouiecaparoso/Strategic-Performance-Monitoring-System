@@ -33,18 +33,38 @@ const navigation = [
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
+  const [showSyncHealth, setShowSyncHealth] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut, isConfigured } = useAuth();
   // Supabase sync runs first; Google Sheets sync acts as a supplementary fallback
   const { isSyncing: isSupaSyncing, syncError: supaError } = useSupabaseSync();
-  const { isSyncing: isGsSyncing, syncError: gsError } = useGoogleSheetsSync();
+  const {
+    isGoogleSheetsConfigured: isGoogleSyncActive,
+    googleIsPrimary,
+    isSyncing: isGsSyncing,
+    syncError: gsError,
+    syncHealth,
+    lastDelta,
+    lastSyncedAt: gsLastSyncedAt,
+    lastAttemptAt: gsLastAttemptAt,
+    intervalMs,
+  } = useGoogleSheetsSync();
   const isSyncing = isSupaSyncing || isGsSyncing;
   const syncError = supaError || gsError;
+  const totalDroppedRows = syncHealth
+    ? Object.values(syncHealth.entities).reduce((sum, entity) => sum + entity.droppedRows, 0)
+    : 0;
+  const nextSyncAt = gsLastAttemptAt ? new Date(gsLastAttemptAt.getTime() + intervalMs) : null;
 
   const displayName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Admin User';
   const displayRole = user?.user_metadata?.role || 'admin';
   const initials = displayName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
+
+  function formatDateTime(date: Date | null) {
+    if (!date) return 'Not yet';
+    return date.toLocaleString();
+  }
 
   async function handleSignOut() {
     await signOut();
@@ -186,9 +206,109 @@ export function AppLayout() {
         {!isSyncing && syncError && (
           <span className="hidden sm:inline text-xs text-red-200" title={syncError}>Sync error</span>
         )}
+        {isGoogleSyncActive && (
+          <button
+            type="button"
+            onClick={() => setShowSyncHealth((prev) => !prev)}
+            className="ml-2 rounded-md border border-white/30 px-2 py-1 text-xs text-white hover:bg-white/10"
+          >
+            {showSyncHealth ? 'Hide Sync Health' : 'Sync Health'}
+          </button>
+        )}
       </header>
 
       <main className={`min-h-screen overflow-x-hidden bg-[#519A66] px-4 pt-20 pb-4 sm:px-6 sm:pb-6 lg:px-8 lg:pb-8 ${desktopSidebarOpen ? 'lg:ml-72' : 'lg:ml-0'}`}>
+        {isGoogleSyncActive && showSyncHealth && (
+          <section className="mb-4 rounded-xl border border-emerald-100 bg-white/95 p-4 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-emerald-900">Google Sheets Sync Health</h2>
+                <p className="text-xs text-emerald-800/80">
+                  Source of truth: {googleIsPrimary ? 'Google Sheets (Primary)' : 'Google Sheets (Supplementary)'}
+                </p>
+              </div>
+              <div className="text-xs text-emerald-900">
+                <p>Last successful sync: {formatDateTime(gsLastSyncedAt)}</p>
+                <p>Last attempt: {formatDateTime(gsLastAttemptAt)}</p>
+                <p>Next scheduled sync: {formatDateTime(nextSyncAt)}</p>
+              </div>
+            </div>
+
+            <div className="mt-3 grid gap-3 md:grid-cols-3">
+              <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-3">
+                <p className="text-xs font-medium text-emerald-900">Unsynced / Dropped Rows</p>
+                <p className="mt-1 text-2xl font-semibold text-emerald-900">{totalDroppedRows}</p>
+                <p className="text-xs text-emerald-900/70">Rows filtered due to missing/invalid required fields.</p>
+              </div>
+              <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-3">
+                <p className="text-xs font-medium text-emerald-900">Recent KPI Sync Changes</p>
+                <p className="mt-1 text-sm text-emerald-900">
+                  +{lastDelta?.kpis.added || 0} added, ~{lastDelta?.kpis.updated || 0} updated, -{lastDelta?.kpis.removed || 0} removed
+                </p>
+                <p className="text-xs text-emerald-900/70">Detected from latest polling cycle.</p>
+              </div>
+              <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-3">
+                <p className="text-xs font-medium text-emerald-900">Polling Interval</p>
+                <p className="mt-1 text-2xl font-semibold text-emerald-900">{Math.round(intervalMs / 1000)}s</p>
+                <p className="text-xs text-emerald-900/70">Set by VITE_GOOGLE_SHEETS_SYNC_INTERVAL_MS.</p>
+              </div>
+            </div>
+
+            {syncHealth && (
+              <div className="mt-3 overflow-x-auto">
+                <table className="min-w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-emerald-900/80">
+                      <th className="px-2 py-1">Sheet</th>
+                      <th className="px-2 py-1">Total Rows</th>
+                      <th className="px-2 py-1">Parsed</th>
+                      <th className="px-2 py-1">Dropped</th>
+                      <th className="px-2 py-1">Top Drop Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.values(syncHealth.entities).map((entity) => {
+                      const topReason = Object.entries(entity.droppedByReason).sort((a, b) => b[1] - a[1])[0];
+                      return (
+                        <tr key={entity.sheetName} className="border-t border-emerald-100 text-emerald-900">
+                          <td className="px-2 py-1">{entity.sheetName}</td>
+                          <td className="px-2 py-1">{entity.totalRows}</td>
+                          <td className="px-2 py-1">{entity.parsedRows}</td>
+                          <td className="px-2 py-1">{entity.droppedRows}</td>
+                          <td className="px-2 py-1">{topReason ? `${topReason[0]} (${topReason[1]})` : '-'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {(syncHealth?.entities.kpis.droppedSample.length || 0) > 0 && (
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <p className="text-xs font-medium text-amber-900">Sample KPI Rows Not Synced</p>
+                <div className="mt-2 space-y-1 text-xs text-amber-900">
+                  {syncHealth?.entities.kpis.droppedSample.map((sample) => (
+                    <p key={`${sample.rowNumber}-${sample.reason}`}>
+                      Row {sample.rowNumber}: {sample.reason}{sample.identifier ? ` (${sample.identifier})` : ''}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(lastDelta?.recentKpis.length || 0) > 0 && (
+              <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                <p className="text-xs font-medium text-emerald-900">Recently Synced KPIs</p>
+                <div className="mt-2 space-y-1 text-xs text-emerald-900">
+                  {lastDelta?.recentKpis.map((line) => (
+                    <p key={line}>{line}</p>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
         <Outlet />
       </main>
     </div>

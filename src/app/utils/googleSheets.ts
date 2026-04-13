@@ -7,6 +7,39 @@ export interface SheetData {
   values: string[][];
 }
 
+export interface SyncIssue {
+  rowNumber: number;
+  reason: string;
+  identifier?: string;
+}
+
+export interface EntitySyncHealth {
+  sheetName: string;
+  totalRows: number;
+  parsedRows: number;
+  droppedRows: number;
+  droppedByReason: Record<string, number>;
+  droppedSample: SyncIssue[];
+}
+
+export interface GoogleSheetsSyncHealth {
+  fetchedAt: string;
+  entities: {
+    goals: EntitySyncHealth;
+    offices: EntitySyncHealth;
+    users: EntitySyncHealth;
+    kpis: EntitySyncHealth;
+    monthlyAccomplishments: EntitySyncHealth;
+    issues: EntitySyncHealth;
+    movs: EntitySyncHealth;
+  };
+}
+
+export interface GoogleSheetsFetchResult {
+  data: Partial<AppDataSnapshot>;
+  health: GoogleSheetsSyncHealth;
+}
+
 const GOOGLE_SHEETS_API_KEY = (import.meta.env.VITE_GOOGLE_SHEETS_API_KEY || '') as string;
 const GOOGLE_SHEETS_SPREADSHEET_ID = (import.meta.env.VITE_GOOGLE_SHEETS_SPREADSHEET_ID || '') as string;
 
@@ -17,8 +50,18 @@ export const isGoogleSheetsConfigured =
   GOOGLE_SHEETS_SPREADSHEET_ID !== 'your-google-sheets-spreadsheet-id';
 
 function toNumber(value: string | undefined, fallback = 0) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
+  if (value === undefined || value === null) return fallback;
+  const normalized = String(value).trim();
+  if (!normalized) return fallback;
+
+  const cleaned = normalized.replace(/[,%$\s]/g, '');
+  const parsed = Number(cleaned);
+  if (Number.isFinite(parsed)) return parsed;
+
+  const firstNumber = cleaned.match(/-?\d+(\.\d+)?/);
+  if (!firstNumber) return fallback;
+  const fallbackParsed = Number(firstNumber[0]);
+  return Number.isFinite(fallbackParsed) ? fallbackParsed : fallback;
 }
 
 function toBoolean(value: string | undefined) {
@@ -31,6 +74,48 @@ function normalizeKey(key: string) {
   return key.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+function inferSheetName(range: string) {
+  return range.split('!')[0] || 'Unknown';
+}
+
+function initEntityHealth(sheetName: string, totalRows: number): EntitySyncHealth {
+  return {
+    sheetName,
+    totalRows,
+    parsedRows: 0,
+    droppedRows: 0,
+    droppedByReason: {},
+    droppedSample: [],
+  };
+}
+
+function addDropIssue(health: EntitySyncHealth, issue: SyncIssue) {
+  health.droppedRows += 1;
+  health.droppedByReason[issue.reason] = (health.droppedByReason[issue.reason] || 0) + 1;
+  if (health.droppedSample.length < 12) {
+    health.droppedSample.push(issue);
+  }
+}
+
+function fallbackKpiId(row: Record<string, string>) {
+  const sourceSheet = normalizeKey(row.sourcesheet || 'sheet');
+  const sourceRow = normalizeKey(row.sourcerow || '');
+  const code = normalizeKey(row.code || '');
+  const name = normalizeKey(row.name || row.kpistrategicmeasure || row.kpimeasure || '');
+  const office = normalizeKey(row.officeid || row.assignedofficeunit || row.office || '');
+  const goal = normalizeKey(row.goalid || row.goal || '');
+
+  if (sourceRow) {
+    return `kpi-${sourceSheet}-${sourceRow}`;
+  }
+
+  if (code) {
+    return `kpi-${code}`;
+  }
+
+  return `kpi-${sourceSheet}-${office || 'unknown'}-${goal || 'unknown'}-${name || 'unknown'}`;
+}
+
 function mapRows(values: string[][]) {
   if (!values.length) return [] as Record<string, string>[];
   const headers = values[0].map(normalizeKey);
@@ -40,6 +125,21 @@ function mapRows(values: string[][]) {
       mapped[header] = row[index] || '';
     });
     return mapped;
+  });
+}
+
+function mapRowsWithMeta(values: string[][]) {
+  if (!values.length) return [] as { rowNumber: number; row: Record<string, string> }[];
+  const headers = values[0].map(normalizeKey);
+  return values.slice(1).map((row, idx) => {
+    const mapped: Record<string, string> = {};
+    headers.forEach((header, index) => {
+      mapped[header] = row[index] || '';
+    });
+    return {
+      rowNumber: idx + 2,
+      row: mapped,
+    };
   });
 }
 
@@ -119,7 +219,7 @@ function parseUsers(values: string[][]): User[] {
 
 function parseKpis(values: string[][]): KPI[] {
   return mapRows(values).map((row) => ({
-    id: row.id || `kpi-${normalizeKey(row.sourcesheet || 'sheet')}-${row.sourcerow || Math.random().toString(36).slice(2, 8)}`,
+    id: row.id || fallbackKpiId(row),
     code: row.code || `KPI-${row.sourcerow || row.id || ''}`,
     name: row.name || row.kpistrategicmeasure || row.kpimeasure || '',
     description: row.description || row.strategicobjective || '',
@@ -157,6 +257,94 @@ function parseKpis(values: string[][]): KPI[] {
     q4Target: Number.isFinite(kpi.q4Target as number) ? kpi.q4Target : undefined,
     sourceRow: Number.isFinite(kpi.sourceRow as number) ? kpi.sourceRow : undefined,
   })).filter((kpi) => kpi.id && kpi.code && kpi.goalId && kpi.officeId && kpi.name);
+}
+
+function parseKpisWithHealth(values: string[][], sheetName: string) {
+  const totalRows = Math.max(values.length - 1, 0);
+  const health = initEntityHealth(sheetName, totalRows);
+  const items: KPI[] = [];
+
+  mapRowsWithMeta(values).forEach(({ row, rowNumber }) => {
+    const kpi = {
+      id: row.id || fallbackKpiId(row),
+      code: row.code || `KPI-${row.sourcerow || row.id || ''}`,
+      name: row.name || row.kpistrategicmeasure || row.kpimeasure || '',
+      description: row.description || row.strategicobjective || '',
+      goalId: row.goalid || `goal-${normalizeKey(row.goal || 'unknown')}`,
+      officeId: row.officeid || `office-${normalizeKey(row.assignedofficeunit || row.office || 'unknown')}`,
+      target: toNumber(row.target || row.target2026frombsc),
+      unit: row.unit || 'count',
+      status: normalizeKpiStatus(row.status),
+      submissionStatus: (row.submissionstatus as KPI['submissionStatus']) || 'not_submitted',
+      submissionDate: row.submissiondate || undefined,
+      focalPerson: row.focalperson || '',
+      pillar: row.pillar || undefined,
+      assignmentType: normalizeAssignmentType(row.assignmenttype),
+      perspective: row.perspective || undefined,
+      strategicObjective: row.strategicobjective || undefined,
+      q1Target: toNumber(row.q1target, NaN),
+      q2Target: toNumber(row.q2target, NaN),
+      q3Target: toNumber(row.q3target, NaN),
+      q4Target: toNumber(row.q4target, NaN),
+      targetText: row.target2026frombsc || undefined,
+      keyActivitiesOutputs: row.keyactivitiesoutputs || undefined,
+      meansOfVerification: row.meansofverification || row.meansofverificationmov || undefined,
+      movText: row.meansofverificationmov || undefined,
+      issuesChallenges: row.issueschallenges || undefined,
+      assistanceNeededRecommendations: row.assistanceneededrecommendations || undefined,
+      validationState: (row.validationstate as KPI['validationState']) || undefined,
+      bscRemarks: row.bscremarks || undefined,
+      sourceSheet: row.sourcesheet || undefined,
+      sourceRow: toNumber(row.sourcerow, NaN),
+    } as KPI;
+
+    const normalizedKpi = {
+      ...kpi,
+      q1Target: Number.isFinite(kpi.q1Target as number) ? kpi.q1Target : undefined,
+      q2Target: Number.isFinite(kpi.q2Target as number) ? kpi.q2Target : undefined,
+      q3Target: Number.isFinite(kpi.q3Target as number) ? kpi.q3Target : undefined,
+      q4Target: Number.isFinite(kpi.q4Target as number) ? kpi.q4Target : undefined,
+      sourceRow: Number.isFinite(kpi.sourceRow as number) ? kpi.sourceRow : undefined,
+    };
+
+    const missing: string[] = [];
+    if (!normalizedKpi.name) missing.push('name');
+    if (!normalizedKpi.goalId || normalizedKpi.goalId === 'goal-unknown') missing.push('goal');
+    if (!normalizedKpi.officeId || normalizedKpi.officeId === 'office-unknown') missing.push('office');
+
+    if (missing.length > 0) {
+      addDropIssue(health, {
+        rowNumber,
+        reason: `missing_${missing.join('_')}`,
+        identifier: row.code || row.kpistrategicmeasure || row.kpimeasure || row.id || '',
+      });
+      return;
+    }
+
+    health.parsedRows += 1;
+    items.push(normalizedKpi);
+  });
+
+  return { items, health };
+}
+
+function summarizeGenericEntity(
+  itemsLength: number,
+  values: string[][],
+  sheetName: string,
+): EntitySyncHealth {
+  const totalRows = Math.max(values.length - 1, 0);
+  const parsedRows = itemsLength;
+  const droppedRows = Math.max(totalRows - parsedRows, 0);
+  const droppedByReason = droppedRows > 0 ? { filtered_out_or_invalid: droppedRows } : {};
+  return {
+    sheetName,
+    totalRows,
+    parsedRows,
+    droppedRows,
+    droppedByReason,
+    droppedSample: [],
+  };
 }
 
 function parseMonthlyAccomplishments(values: string[][]): MonthlyAccomplishment[] {
@@ -201,8 +389,27 @@ function parseMovs(values: string[][]): MOV[] {
 export async function fetchDashboardDataFromGoogleSheets(
   ranges: GoogleSheetsRanges = {},
 ): Promise<Partial<AppDataSnapshot>> {
+  const result = await fetchDashboardDataWithHealthFromGoogleSheets(ranges);
+  return result.data;
+}
+
+export async function fetchDashboardDataWithHealthFromGoogleSheets(
+  ranges: GoogleSheetsRanges = {},
+): Promise<GoogleSheetsFetchResult> {
   if (!isGoogleSheetsConfigured) {
-    return {};
+    const emptyHealth: GoogleSheetsSyncHealth = {
+      fetchedAt: new Date().toISOString(),
+      entities: {
+        goals: initEntityHealth('Goals', 0),
+        offices: initEntityHealth('Offices', 0),
+        users: initEntityHealth('Users', 0),
+        kpis: initEntityHealth('KPIs', 0),
+        monthlyAccomplishments: initEntityHealth('MonthlyAccomplishments', 0),
+        issues: initEntityHealth('Issues', 0),
+        movs: initEntityHealth('MOVs', 0),
+      },
+    };
+    return { data: {}, health: emptyHealth };
   }
 
   const resolvedRanges = { ...defaultRanges, ...ranges };
@@ -218,13 +425,41 @@ export async function fetchDashboardDataFromGoogleSheets(
     fetchFromGoogleSheets(spreadsheetId, resolvedRanges.movs),
   ]);
 
+  const goals = parseGoals(goalsRes.values);
+  const offices = parseOffices(officesRes.values);
+  const users = parseUsers(usersRes.values);
+  const kpisResult = parseKpisWithHealth(kpisRes.values, inferSheetName(kpisRes.range));
+  const monthly = parseMonthlyAccomplishments(monthlyRes.values);
+  const issues = parseIssues(issuesRes.values);
+  const movs = parseMovs(movsRes.values);
+
+  const health: GoogleSheetsSyncHealth = {
+    fetchedAt: new Date().toISOString(),
+    entities: {
+      goals: summarizeGenericEntity(goals.length, goalsRes.values, inferSheetName(goalsRes.range)),
+      offices: summarizeGenericEntity(offices.length, officesRes.values, inferSheetName(officesRes.range)),
+      users: summarizeGenericEntity(users.length, usersRes.values, inferSheetName(usersRes.range)),
+      kpis: kpisResult.health,
+      monthlyAccomplishments: summarizeGenericEntity(
+        monthly.length,
+        monthlyRes.values,
+        inferSheetName(monthlyRes.range),
+      ),
+      issues: summarizeGenericEntity(issues.length, issuesRes.values, inferSheetName(issuesRes.range)),
+      movs: summarizeGenericEntity(movs.length, movsRes.values, inferSheetName(movsRes.range)),
+    },
+  };
+
   return {
-    goals: parseGoals(goalsRes.values),
-    offices: parseOffices(officesRes.values),
-    users: parseUsers(usersRes.values),
-    kpis: parseKpis(kpisRes.values),
-    monthlyAccomplishments: parseMonthlyAccomplishments(monthlyRes.values),
-    issues: parseIssues(issuesRes.values),
-    movs: parseMovs(movsRes.values),
+    data: {
+      goals,
+      offices,
+      users,
+      kpis: kpisResult.items,
+      monthlyAccomplishments: monthly,
+      issues,
+      movs,
+    },
+    health,
   };
 }

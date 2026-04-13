@@ -12,6 +12,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 import { setDataSnapshot, getDataSnapshot } from '../data/store';
+import { isGoogleSheetsConfigured } from '../utils/googleSheets';
 import {
   syncFromSupabase,
   // Individual mappers are internal, so we re-fetch affected slices on RT events
@@ -151,10 +152,14 @@ export function useSupabaseSync() {
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const didSync = useRef(false);
+  const primaryDataSource = String((import.meta as any).env?.VITE_PRIMARY_DATA_SOURCE || '')
+    .trim()
+    .toLowerCase();
+  const shouldPauseSupabaseSync = primaryDataSource === 'google_sheets' && isGoogleSheetsConfigured;
 
   // ── Initial full sync ────────────────────────────────────────────────────
   useEffect(() => {
-    if (!isSupabaseConfigured || didSync.current) return;
+    if (!isSupabaseConfigured || shouldPauseSupabaseSync || didSync.current) return;
     didSync.current = true;
 
     let cancelled = false;
@@ -182,7 +187,7 @@ export function useSupabaseSync() {
 
   // ── Realtime subscriptions ──────────────────────────────────────────────
   useEffect(() => {
-    if (!isSupabaseConfigured) return;
+    if (!isSupabaseConfigured || shouldPauseSupabaseSync) return;
 
     const channel = supabase
       .channel('spms-realtime')
@@ -244,5 +249,10 @@ export function useSupabaseSync() {
     };
   }, []);
 
-  return { isSupabaseConfigured, isSyncing, lastSyncedAt, syncError };
+  return {
+    isSupabaseConfigured: isSupabaseConfigured && !shouldPauseSupabaseSync,
+    isSyncing,
+    lastSyncedAt,
+    syncError,
+  };
 }

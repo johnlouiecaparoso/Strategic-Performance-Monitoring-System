@@ -586,3 +586,26 @@ The strongest relationship in your system is this:
 - the website dashboards are the reporting output
 
 Because of that, the quality of the website depends heavily on complete and correct Excel row entries.
+
+## 11. New Sync Health panel (Google Sheets)
+
+If your setup uses Google Sheets sync, you can now open `Sync Health` from the top bar.
+
+What you can see there:
+
+- Source mode (whether Google Sheets is primary or supplementary)
+- `Last successful sync`
+- `Last attempt`
+- `Next scheduled sync`
+- Polling interval in seconds
+- Rows dropped/not synced, including top reasons
+- Sample KPI rows that were not synced
+- Recently synced KPI entries
+
+This helps you answer common questions quickly:
+
+- Why is a row in Google Sheets not showing in the dashboard?
+- Which KPI rows were recently updated in the system?
+- When is the next automatic sync expected?
+
+If dropped rows appear, check those rows in Google Sheets and complete missing required values (especially office, goal, and KPI name).
