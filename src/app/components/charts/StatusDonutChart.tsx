@@ -11,9 +11,14 @@ import { useIsMobile } from '../ui/use-mobile';
 interface StatusDonutChartProps {
   data: Array<{ name: string; value: number; color: string }>;
   exportTitle?: string;
+  centerLabel?: string;
 }
 
-export function StatusDonutChart({ data, exportTitle = 'Status Breakdown' }: StatusDonutChartProps) {
+export function StatusDonutChart({
+  data,
+  exportTitle = 'Status Breakdown',
+  centerLabel = 'Total',
+}: StatusDonutChartProps) {
   const isMobile = useIsMobile();
   const total = data.reduce((sum, item) => sum + item.value, 0);
 
@@ -50,7 +55,7 @@ export function StatusDonutChart({ data, exportTitle = 'Status Breakdown' }: Sta
           className="fill-foreground"
         >
           <tspan x="50%" dy="-0.35em" className={isMobile ? 'text-lg font-semibold' : 'text-xl font-semibold'}>{total}</tspan>
-          <tspan x="50%" dy="1.3em" className="fill-muted-foreground text-xs">Total KPIs</tspan>
+          <tspan x="50%" dy="1.3em" className="fill-muted-foreground text-xs">{centerLabel}</tspan>
         </text>
         <ChartTooltip content={<ChartTooltipContent />} />
         <ChartLegend

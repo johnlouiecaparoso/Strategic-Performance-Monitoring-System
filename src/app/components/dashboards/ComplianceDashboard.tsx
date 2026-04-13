@@ -20,7 +20,8 @@ export function ComplianceDashboard() {
   const submitted = kpis.filter(k => k.submissionStatus === 'submitted').length;
   const notSubmitted = kpis.filter(k => k.submissionStatus === 'not_submitted').length;
   const late = kpis.filter(k => k.submissionStatus === 'late').length;
-  const totalCompliance = kpis.length > 0 ? (submitted / kpis.length) * 100 : 0;
+  const totalSubmittedAny = submitted + late;
+  const totalCompliance = kpis.length > 0 ? (totalSubmittedAny / kpis.length) * 100 : 0;
 
   // Compliance by office
   const officeComplianceData = offices.map(office => {
@@ -29,6 +30,8 @@ export function ComplianceDashboard() {
       office: office.name,
       compliance: compliance.compliance,
       submitted: compliance.submitted,
+      late: compliance.late,
+      compliant: compliance.compliant,
       total: compliance.total
     };
   }).filter(o => o.total > 0);
@@ -36,10 +39,20 @@ export function ComplianceDashboard() {
   // On-time vs late submissions
   const onTime = kpis.filter(k => k.submissionStatus === 'submitted' && k.submissionDate);
   const lateSubmissions = kpis.filter(k => k.submissionStatus === 'late');
+  const submissionFunnelData = [
+    { stage: 'Total KPIs', value: kpis.length },
+    { stage: 'Any Submitted', value: totalSubmittedAny },
+    { stage: 'On Time Submitted', value: submitted },
+    { stage: 'Late Submitted', value: late },
+    { stage: 'Not Submitted', value: notSubmitted },
+  ];
   const formatOfficeLabel = (label: string) =>
     label.length > 18 ? `${label.slice(0, 18)}…` : label;
   const officeComplianceChartConfig = {
     compliance: { label: 'Compliance %', color: '#3b82f6' },
+  } satisfies ChartConfig;
+  const funnelChartConfig = {
+    value: { label: 'Count', color: '#2563eb' },
   } satisfies ChartConfig;
 
   return (
@@ -91,6 +104,29 @@ export function ComplianceDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Submission Funnel</CardTitle>
+          <CardDescription>Submission conversion from total KPI rows to on-time and late submissions</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer
+            config={funnelChartConfig}
+            exportTitle="Submission Funnel"
+            exportData={submissionFunnelData}
+            className="h-[320px] w-full"
+          >
+            <BarChart data={submissionFunnelData} layout="vertical" margin={{ top: 12, right: 8, left: 24, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+              <XAxis type="number" tickLine={false} axisLine={false} />
+              <YAxis type="category" dataKey="stage" width={130} tickLine={false} axisLine={false} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey="value" fill="var(--color-value)" radius={[0, 6, 6, 0]} />
+            </BarChart>
+          </ChartContainer>
+        </CardContent>
+      </Card>
 
       {/* Office Compliance Chart */}
       <Card>

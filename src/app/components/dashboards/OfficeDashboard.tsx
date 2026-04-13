@@ -13,6 +13,7 @@ export function OfficeDashboard() {
   const { offices, kpis, monthlyAccomplishments } = useAppData();
   const officeGroups = useMemo(() => {
     const grouped = new Map<string, { id: string; name: string; focalPersons: Set<string>; officeIds: Set<string> }>();
+    const officeIdToGroupId = new Map<string, string>();
 
     offices.forEach((office) => {
       const key = office.name.trim().toLowerCase();
@@ -23,20 +24,42 @@ export function OfficeDashboard() {
           focalPersons: new Set(office.focalPerson ? [office.focalPerson] : []),
           officeIds: new Set([office.id]),
         });
+        officeIdToGroupId.set(office.id, key);
       } else {
         const existing = grouped.get(key)!;
         existing.officeIds.add(office.id);
         if (office.focalPerson) existing.focalPersons.add(office.focalPerson);
+        officeIdToGroupId.set(office.id, key);
       }
     });
 
+    // Fallback: ensure office options still exist even if the Offices sheet is empty/incomplete.
+    kpis.forEach((kpi) => {
+      if (officeIdToGroupId.has(kpi.officeId)) return;
+
+      const derivedName = kpi.officeId
+        .replace(/^office-/, '')
+        .replace(/-/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase()) || kpi.officeId;
+      const key = `derived-${kpi.officeId}`;
+
+      grouped.set(key, {
+        id: key,
+        name: derivedName,
+        focalPersons: new Set(kpi.focalPerson ? [kpi.focalPerson] : []),
+        officeIds: new Set([kpi.officeId]),
+      });
+      officeIdToGroupId.set(kpi.officeId, key);
+    });
+
     return Array.from(grouped.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [offices]);
+  }, [offices, kpis]);
 
   const [selectedOffice, setSelectedOffice] = useState(officeGroups[0]?.id || '');
 
   useEffect(() => {
-    if (!selectedOffice && officeGroups.length > 0) {
+    const selectedStillExists = officeGroups.some((group) => group.id === selectedOffice);
+    if ((!selectedOffice || !selectedStillExists) && officeGroups.length > 0) {
       setSelectedOffice(officeGroups[0].id);
     }
   }, [selectedOffice, officeGroups]);

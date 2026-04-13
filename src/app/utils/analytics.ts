@@ -103,7 +103,12 @@ export function getOfficesWithMissingSubmissions() {
 
 export function getMonthlyTrend() {
   const { monthlyAccomplishments } = getDataSnapshot();
-  return ALL_MONTHS.map(month => {
+  const monthsWithData = ALL_MONTHS.filter((month) =>
+    monthlyAccomplishments.some((a) => a.month === month),
+  );
+  const months = monthsWithData.length > 0 ? monthsWithData : ALL_MONTHS.slice(0, 3);
+
+  return months.map(month => {
     const monthAccomplishments = monthlyAccomplishments.filter(a => a.month === month);
     const total = monthAccomplishments.reduce((sum, a) => sum + a.accomplishment, 0);
     const avgPercentage = monthAccomplishments.length > 0
@@ -142,11 +147,15 @@ export function getOfficeCompliance(officeId: string) {
   const { kpis } = getDataSnapshot();
   const officeKPIs = kpis.filter(k => k.officeId === officeId);
   const submitted = officeKPIs.filter(k => k.submissionStatus === 'submitted').length;
+  const late = officeKPIs.filter(k => k.submissionStatus === 'late').length;
+  const compliant = submitted + late;
   
   return {
     total: officeKPIs.length,
     submitted,
-    compliance: officeKPIs.length > 0 ? (submitted / officeKPIs.length) * 100 : 0
+    late,
+    compliant,
+    compliance: officeKPIs.length > 0 ? (compliant / officeKPIs.length) * 100 : 0
   };
 }
 

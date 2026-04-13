@@ -267,10 +267,10 @@ export function AppLayout() {
                     </tr>
                   </thead>
                   <tbody>
-                    {Object.values(syncHealth.entities).map((entity) => {
+                    {Object.entries(syncHealth.entities).map(([entityKey, entity]) => {
                       const topReason = Object.entries(entity.droppedByReason).sort((a, b) => b[1] - a[1])[0];
                       return (
-                        <tr key={entity.sheetName} className="border-t border-emerald-100 text-emerald-900">
+                        <tr key={`${entityKey}-${entity.sheetName}`} className="border-t border-emerald-100 text-emerald-900">
                           <td className="px-2 py-1">{entity.sheetName}</td>
                           <td className="px-2 py-1">{entity.totalRows}</td>
                           <td className="px-2 py-1">{entity.parsedRows}</td>

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Download } from "lucide-react";
 import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
 import { toast } from "sonner";
 
 import { Button } from "./button";
@@ -34,8 +35,16 @@ function downloadBlob(blob: Blob, filename: string) {
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
+  anchor.rel = "noopener";
+  document.body.appendChild(anchor);
+  const supportsDownload = "download" in HTMLAnchorElement.prototype;
+  if (supportsDownload) {
+    anchor.click();
+  } else {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function getChartSvg(container: HTMLDivElement) {
@@ -125,27 +134,90 @@ async function svgToCanvas(svg: SVGSVGElement) {
   return canvas;
 }
 
-function toCsv(rows: ChartExportRow[]) {
-  const keys = Array.from(
-    rows.reduce((set, row) => {
-      Object.keys(row).forEach((key) => set.add(key));
-      return set;
-    }, new Set<string>()),
-  );
+function getExportTarget(container: HTMLDivElement) {
+  return (container.closest('[data-slot="card"]') as HTMLElement | null) ?? container;
+}
 
-  const escapeCell = (value: unknown) => {
-    if (value === null || value === undefined) {
-      return "";
+async function waitForPaint() {
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+}
+
+function canvasLooksBlank(canvas: HTMLCanvasElement) {
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) return true;
+
+  const width = Math.max(1, canvas.width);
+  const height = Math.max(1, canvas.height);
+  const sampleStepX = Math.max(1, Math.floor(width / 40));
+  const sampleStepY = Math.max(1, Math.floor(height / 40));
+
+  let sampled = 0;
+  let nonWhite = 0;
+
+  for (let y = 0; y < height; y += sampleStepY) {
+    for (let x = 0; x < width; x += sampleStepX) {
+      const [r, g, b, a] = context.getImageData(x, y, 1, 1).data;
+      sampled += 1;
+      const isVisible = a > 8;
+      const isWhite = r > 245 && g > 245 && b > 245;
+      if (isVisible && !isWhite) {
+        nonWhite += 1;
+      }
     }
+  }
 
-    const text = typeof value === "string" ? value : JSON.stringify(value);
-    return `"${text.replace(/"/g, '""')}"`;
-  };
+  return sampled > 0 ? nonWhite / sampled < 0.01 : true;
+}
 
-  return [
-    keys.join(","),
-    ...rows.map((row) => keys.map((key) => escapeCell(row[key])).join(",")),
-  ].join("\n");
+async function elementToCanvas(target: HTMLElement) {
+  return html2canvas(target, {
+    backgroundColor: "#ffffff",
+    scale: 2,
+    useCORS: true,
+    logging: false,
+    foreignObjectRendering: true,
+    ignoreElements: (element) => element.hasAttribute("data-export-ignore"),
+  });
+}
+
+async function elementToCanvasFallback(target: HTMLElement) {
+  return html2canvas(target, {
+    backgroundColor: "#ffffff",
+    scale: 2,
+    useCORS: true,
+    logging: false,
+    foreignObjectRendering: false,
+    ignoreElements: (element) => element.hasAttribute("data-export-ignore"),
+  });
+}
+
+async function renderExportCanvas(container: HTMLDivElement) {
+  const target = getExportTarget(container);
+  await waitForPaint();
+
+  try {
+    const canvas = await elementToCanvas(target);
+    if (!canvasLooksBlank(canvas)) {
+      return canvas;
+    }
+    throw new Error("Primary card capture is blank");
+  } catch {
+    try {
+      const canvas = await elementToCanvasFallback(target);
+      if (!canvasLooksBlank(canvas)) {
+        return canvas;
+      }
+      throw new Error("Fallback card capture is blank");
+    } catch {
+      const svg = getChartSvg(container);
+      if (!svg) {
+        throw new Error("Unable to render chart export from card or chart SVG.");
+      }
+
+      return svgToCanvas(svg);
+    }
+  }
 }
 
 async function exportSvg(container: HTMLDivElement, filename: string) {
@@ -160,24 +232,25 @@ async function exportSvg(container: HTMLDivElement, filename: string) {
 }
 
 async function exportRaster(container: HTMLDivElement, filename: string, format: "png" | "jpeg") {
-  const svg = getChartSvg(container);
-  if (!svg) {
-    throw new Error("Chart SVG not found");
-  }
-
-  const canvas = await svgToCanvas(svg);
+  const canvas = await renderExportCanvas(container);
   const mimeType = format === "png" ? "image/png" : "image/jpeg";
   const quality = format === "jpeg" ? 0.95 : undefined;
 
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
-      (result) => {
+      async (result) => {
         if (result) {
           resolve(result);
           return;
         }
 
-        reject(new Error("Failed to generate image blob"));
+        try {
+          const dataUrl = canvas.toDataURL(mimeType, quality);
+          const response = await fetch(dataUrl);
+          resolve(await response.blob());
+        } catch {
+          reject(new Error("Failed to generate image blob"));
+        }
       },
       mimeType,
       quality,
@@ -188,12 +261,7 @@ async function exportRaster(container: HTMLDivElement, filename: string, format:
 }
 
 async function exportPdf(container: HTMLDivElement, filename: string) {
-  const svg = getChartSvg(container);
-  if (!svg) {
-    throw new Error("Chart SVG not found");
-  }
-
-  const canvas = await svgToCanvas(svg);
+  const canvas = await renderExportCanvas(container);
   const imageData = canvas.toDataURL("image/png");
   const pdf = new jsPDF({
     orientation: canvas.width >= canvas.height ? "landscape" : "portrait",
@@ -209,15 +277,11 @@ function exportJson(rows: ChartExportRow[], filename: string) {
   downloadBlob(new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" }), filename);
 }
 
-function exportCsv(rows: ChartExportRow[], filename: string) {
-  downloadBlob(new Blob([toCsv(rows)], { type: "text/csv;charset=utf-8" }), filename);
-}
-
 export function ChartExportMenu({ containerRef, exportTitle, exportData }: ChartExportMenuProps) {
   const filenameBase = slugify(exportTitle || "chart");
   const hasData = Boolean(exportData?.length);
 
-  const handleExport = async (type: "svg" | "png" | "jpeg" | "pdf" | "csv" | "json") => {
+  const handleExport = async (type: "svg" | "png" | "jpeg" | "pdf" | "json") => {
     const container = containerRef.current;
     if (!container) {
       toast.error("Chart is not ready for export.");
@@ -233,13 +297,6 @@ export function ChartExportMenu({ containerRef, exportTitle, exportData }: Chart
         await exportRaster(container, `${filenameBase}.jpg`, "jpeg");
       } else if (type === "pdf") {
         await exportPdf(container, `${filenameBase}.pdf`);
-      } else if (type === "csv") {
-        if (!exportData?.length) {
-          toast.error("No tabular data is available for CSV export.");
-          return;
-        }
-
-        exportCsv(exportData, `${filenameBase}.csv`);
       } else if (type === "json") {
         if (!exportData?.length) {
           toast.error("No tabular data is available for JSON export.");
@@ -271,12 +328,9 @@ export function ChartExportMenu({ containerRef, exportTitle, exportData }: Chart
       <DropdownMenuContent align="end" className="min-w-44">
         <DropdownMenuItem onClick={() => void handleExport("png")}>PNG image</DropdownMenuItem>
         <DropdownMenuItem onClick={() => void handleExport("jpeg")}>JPEG image</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => void handleExport("svg")}>SVG image</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => void handleExport("svg")}>SVG file</DropdownMenuItem>
         <DropdownMenuItem onClick={() => void handleExport("pdf")}>PDF document</DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem disabled={!hasData} onClick={() => void handleExport("csv")}>
-          CSV data
-        </DropdownMenuItem>
         <DropdownMenuItem disabled={!hasData} onClick={() => void handleExport("json")}>
           JSON data
         </DropdownMenuItem>

@@ -6,6 +6,15 @@ import { Badge } from '../ui/badge';
 import { AlertCircle } from 'lucide-react';
 import { Progress } from '../ui/progress';
 import { useAppData } from '../../data/store';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
+import {
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from '../ui/chart';
 
 export function GoalPerformanceDashboard() {
   const { goals, offices } = useAppData();
@@ -56,6 +65,15 @@ export function GoalPerformanceDashboard() {
     };
   });
 
+  const varianceData = goalData.map((item) => ({
+    goal: item.goal,
+    variance: Number((item.accomplished - item.target).toFixed(2)),
+  }));
+
+  const varianceChartConfig = {
+    variance: { label: 'Variance (Accomplishment - Target)', color: 'var(--color-chart-4)' },
+  } satisfies ChartConfig;
+
   return (
     <div className="space-y-6">
       <div>
@@ -71,6 +89,30 @@ export function GoalPerformanceDashboard() {
         </CardHeader>
         <CardContent>
           <GoalPerformanceChart data={goalData} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Variance by Goal</CardTitle>
+          <CardDescription>Positive means accomplishment exceeded target, negative means gap to target</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer
+            config={varianceChartConfig}
+            exportTitle="Goal Variance"
+            exportData={varianceData}
+            className="h-[320px] w-full"
+          >
+            <BarChart data={varianceData} margin={{ top: 12, right: 8, left: 8, bottom: 4 }}>
+              <CartesianGrid vertical={false} strokeDasharray="3 3" />
+              <XAxis dataKey="goal" tickLine={false} axisLine={false} tickMargin={8} />
+              <YAxis tickLine={false} axisLine={false} tickMargin={8} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <ChartLegend content={<ChartLegendContent />} />
+              <Bar dataKey="variance" fill="var(--color-variance)" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ChartContainer>
         </CardContent>
       </Card>
 

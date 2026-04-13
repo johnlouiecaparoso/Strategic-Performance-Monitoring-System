@@ -73,7 +73,7 @@ function ChartContainer({
         )}
         {...props}
       >
-        <div className={cn("absolute z-10", insideCard ? "right-6 top-6" : "right-2 top-2") }>
+        <div data-export-ignore="true" className={cn("absolute z-10", insideCard ? "right-6 top-6" : "right-2 top-2") }>
           <ChartExportMenu
             containerRef={containerRef}
             exportTitle={exportTitle}

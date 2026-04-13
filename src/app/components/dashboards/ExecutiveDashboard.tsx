@@ -52,7 +52,23 @@ export function ExecutiveDashboard() {
   const pillarDonut = toDonutData(pillarBreakdown);
   const assignmentDonut = toDonutData(assignmentBreakdown);
   const perspectiveDonut = toDonutData(perspectiveBreakdown);
-  const sourceDonut = sourceTrace.bySheet.slice(0, 5).map((row, index) => ({
+  const parseGoalNumber = (name: string) => {
+    const match = name.trim().match(/goal\s*(\d+)/i);
+    return match ? Number(match[1]) : null;
+  };
+
+  const sortedSourceSheets = [...sourceTrace.bySheet].sort((a, b) => {
+    const aGoal = parseGoalNumber(a.name);
+    const bGoal = parseGoalNumber(b.name);
+
+    if (aGoal !== null && bGoal !== null) return aGoal - bGoal;
+    if (aGoal !== null) return -1;
+    if (bGoal !== null) return 1;
+
+    return a.name.localeCompare(b.name);
+  });
+
+  const sourceDonut = sortedSourceSheets.slice(0, 5).map((row, index) => ({
     name: row.name,
     value: row.count,
     color: colors[index % colors.length],
@@ -100,7 +116,9 @@ export function ExecutiveDashboard() {
           <CardContent>
             <div className="text-2xl font-semibold">{submissionStats.submitted}</div>
             <p className="text-xs text-gray-500 mt-1">
-              {Math.round((submissionStats.submitted / submissionStats.total) * 100)}% submission rate
+              {submissionStats.total > 0
+                ? `${Math.round((submissionStats.submitted / submissionStats.total) * 100)}% submission rate`
+                : '0% submission rate'}
             </p>
           </CardContent>
         </Card>
@@ -136,7 +154,7 @@ export function ExecutiveDashboard() {
             <CardDescription>Current status of all KPIs</CardDescription>
           </CardHeader>
           <CardContent>
-            <StatusDonutChart data={statusData} exportTitle="Status Distribution" />
+            <StatusDonutChart data={statusData} exportTitle="Status Distribution" centerLabel="Status" />
           </CardContent>
         </Card>
 
@@ -146,7 +164,7 @@ export function ExecutiveDashboard() {
             <CardDescription>Submission compliance overview</CardDescription>
           </CardHeader>
           <CardContent>
-            <StatusDonutChart data={submissionData} exportTitle="Submission Status" />
+            <StatusDonutChart data={submissionData} exportTitle="Submission Status" centerLabel="Submissions" />
           </CardContent>
         </Card>
       </div>
@@ -231,7 +249,7 @@ export function ExecutiveDashboard() {
             <CardDescription>How KPIs are spread by pillar</CardDescription>
           </CardHeader>
           <CardContent>
-            <StatusDonutChart data={pillarDonut} exportTitle="Pillar Distribution" />
+            <StatusDonutChart data={pillarDonut} exportTitle="Pillar Distribution" centerLabel="Pillars" />
           </CardContent>
         </Card>
 
@@ -241,7 +259,7 @@ export function ExecutiveDashboard() {
             <CardDescription>Strategic/Core/Support and other assignments</CardDescription>
           </CardHeader>
           <CardContent>
-            <StatusDonutChart data={assignmentDonut} exportTitle="Assignment Type" />
+            <StatusDonutChart data={assignmentDonut} exportTitle="Assignment Type" centerLabel="Assignments" />
           </CardContent>
         </Card>
 
@@ -251,7 +269,7 @@ export function ExecutiveDashboard() {
             <CardDescription>Coverage by perspective</CardDescription>
           </CardHeader>
           <CardContent>
-            <StatusDonutChart data={perspectiveDonut} exportTitle="Perspective Mix" />
+            <StatusDonutChart data={perspectiveDonut} exportTitle="Perspective Mix" centerLabel="Perspectives" />
           </CardContent>
         </Card>
       </div>
@@ -386,7 +404,7 @@ export function ExecutiveDashboard() {
             <CardDescription>Distribution by source sheet values</CardDescription>
           </CardHeader>
           <CardContent>
-            <StatusDonutChart data={sourceDonut} exportTitle="Source Trace Summary" />
+            <StatusDonutChart data={sourceDonut} exportTitle="Source Trace Summary" centerLabel="Sources" />
           </CardContent>
         </Card>
       </div>
