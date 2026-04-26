@@ -56,24 +56,26 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="flex flex-col items-center gap-3 mb-8">
-          <img
-            src="/csu-logo.jpg"
-            alt="Balance Scorecard Logo"
-            className="size-16 rounded-full object-cover bg-white"
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).style.display = 'none';
-            }}
-          />
-          <div className="text-center">
-            <h1 className="text-3xl font-extrabold text-gray-900 tracking-wide">BSC</h1>
-            <p className="text-base text-gray-600 mt-1 font-medium">Balance Scorecard</p>
-          </div>
-        </div>
-
+    <div
+      className="min-h-screen flex items-center justify-center p-4 bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: 'url("/bg.jpg")' }}
+    >
+      <div className="w-full max-w-xl">
         <Card className="shadow-lg">
+          <div className="flex flex-col items-center gap-3 px-6 pt-6">
+            <img
+              src="/csu-logo.jpg"
+              alt="Balance Scorecard Logo"
+              className="size-16 rounded-full object-cover bg-white"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = 'none';
+              }}
+            />
+            <div className="text-center">
+              <h1 className="text-3xl font-extrabold text-gray-900 tracking-wide">BSC</h1>
+              <p className="text-base text-gray-600 mt-1 font-medium">Balance Scorecard</p>
+            </div>
+          </div>
           <CardHeader className="pb-4">
             <CardTitle className="text-xl">Create Account</CardTitle>
             <CardDescription>
@@ -153,18 +155,17 @@ export function RegisterPage() {
                 {loading ? 'Creating account…' : 'Create Account'}
               </Button>
             </form>
+            <p className="text-center text-sm text-gray-600 mt-5">
+              Already have an account?{' '}
+              <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">
+                Sign In
+              </Link>
+            </p>
+            <p className="text-center text-xs text-gray-400 mt-4">
+              © {new Date().getFullYear()} Balance Scorecard · All rights reserved
+            </p>
           </CardContent>
         </Card>
-
-        <p className="text-center text-xs text-gray-400 mt-6">
-          © {new Date().getFullYear()} Balance Scorecard · All rights reserved
-        </p>
-        <p className="text-center text-sm text-gray-600 mt-2">
-          Already have an account?{' '}
-          <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">
-            Sign In
-          </Link>
-        </p>
       </div>
     </div>
   );

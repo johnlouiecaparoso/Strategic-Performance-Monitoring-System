@@ -211,6 +211,7 @@ export function OfficeDashboard() {
                 <TableHead>Target</TableHead>
                 <TableHead>Accomplishment</TableHead>
                 <TableHead className="min-w-[240px]">Key Activities / Outputs</TableHead>
+                <TableHead className="min-w-[240px]">Means of Verification</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Submission</TableHead>
               </TableRow>
@@ -240,6 +241,11 @@ export function OfficeDashboard() {
                     <TableCell>
                       <div className="max-w-[300px] break-words text-sm" title={kpi.keyActivitiesOutputs || 'N/A'}>
                         <LinkifiedText text={kpi.keyActivitiesOutputs} />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="max-w-[300px] break-words text-sm" title={kpi.meansOfVerification || kpi.movText || 'N/A'}>
+                        <LinkifiedText text={kpi.meansOfVerification || kpi.movText} />
                       </div>
                     </TableCell>
                     <TableCell>
